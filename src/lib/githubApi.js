@@ -3,18 +3,17 @@
  * Handles token management (localStorage) and file uploads to the GitHub repo.
  */
 
-const OWNER = 'crisisjungle';
-const REPO = 'ToWhere.github.io';
-const BRANCH = 'main';
+const OWNER = import.meta.env.VITE_GITHUB_OWNER;
+const REPO = import.meta.env.VITE_GITHUB_REPO;
+const BRANCH = import.meta.env.VITE_GITHUB_BRANCH || 'main';
 const TOKEN_KEY = 'towhere_github_token';
 
-// ========= Token Management =========
-
+// Fallback to .env token if localStorage is empty
 export function getToken() {
     try {
-        return localStorage.getItem(TOKEN_KEY) || '';
+        return localStorage.getItem(TOKEN_KEY) || import.meta.env.VITE_GITHUB_TOKEN || '';
     } catch {
-        return '';
+        return import.meta.env.VITE_GITHUB_TOKEN || '';
     }
 }
 
