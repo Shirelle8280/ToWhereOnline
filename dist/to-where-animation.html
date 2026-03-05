@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pink Line Animation - ToWhere?</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    // 定义“ToWhere？”的更流畅路径点（增加点数，使曲线平滑）
+    const letters = {
+      'T': [[0, 0], [60, 0], [30, 0], [30, 100]], // T: 顶部横线 + 垂直线
+      'o': [[0, 30], [15, 15], [30, 15], [45, 30], [45, 70], [30, 85], [15, 85], [0, 70], [0, 30]], // o: 更平滑圆形
+      'W': [[0, 0], [15, 100], [30, 50], [45, 100], [60, 0]], // W: 调整避免重叠
+      'h': [[0, 0], [0, 100], [0, 50], [30, 50], [60, 50], [60, 100]], // h: 增加点避免重叠
+      'e': [[60, 100], [0, 100], [0, 50], [50, 50], [0, 50], [0, 0], [60, 0]], // e: 平滑
+      'r': [[0, 0], [0, 100], [0, 50], [30, 50], [60, 100], [50, 80]], // r: 曲线
+      'e': [[60, 100], [0, 100], [0, 50], [50, 50], [0, 50], [0, 0], [60, 0]], // e: 平滑
+      '?': [[30, 0], [60, 30], [60, 60], [30, 90], [15, 75], [30, 90], [30, 110]] // ?: 更像问号，增加点
+    };
+
+    // 目标文字："ToWhere？"
+    const text = 'ToWhere?';
+    const charWidth = 70; // 稍宽
+    const charSpacing = 15; // 增加间距避免重叠
+    const totalWidth = text.length * (charWidth + charSpacing) - charSpacing;
+    const startX = (canvas.width - totalWidth) / 2; // 严格居中
+    const startY = canvas.height / 2 - 50;
+
+    // 生成路径点序列（从左到右连接所有字母的点）
+    let pathPoints = [];
+    let currentX = startX;
+    Array.from(text).forEach(char => {
+      const points = letters[char] || [];
+      points.forEach(point => {
+        pathPoints.push({ x: currentX + point[0], y: startY + point[1] });
+      });
+      currentX += charWidth + charSpacing;
+    });
+
+    // 添加起点（屏幕最左边）
+    pathPoints.unshift({ x: 0, y: canvas.height / 2 });
+
+    // 添加终点（屏幕最右边）
+    pathPoints.push({ x: canvas.width, y: canvas.height / 2 });
+
+    // 线条参数
+    const line = {
+      currentIndex: 0,
+      x: pathPoints[0].x,
+      y: pathPoints[0].y,
+      trail: [],
+      speed: 5,
+      color: '#FF69B4',
+      completed: false // 新增：动画完成标志
+    };
+
+    // 动画循环
+    function animate() {
+      if (!line.completed) {
+        // 渐隐背景（动画中）
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else {
+        // 完成后不渐隐背景，保持痕迹
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // 清空，但下面会重绘痕迹
+      }
+
+      // 更新位置
+      if (line.currentIndex < pathPoints.length - 1) {
+        const target = pathPoints[line.currentIndex + 1];
+        const dx = target.x - line.x;
+        const dy = target.y - line.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > line.speed) {
+          line.x += (dx / dist) * line.speed;
+          line.y += (dy / dist) * line.speed;
+        } else {
+          line.x = target.x;
+          line.y = target.y;
+          line.currentIndex++;
+        }
+      } else {
+        line.completed = true; // 标记完成
+      }
+
+      // 添加到轨迹
+      if (!line.completed) {
+        line.trail.push({ x: line.x, y: line.y });
+        if (line.trail.length > 300) line.trail.shift(); // 延长轨迹以保持
+      }
+
+      // 绘制轨迹
+      ctx.beginPath();
+      ctx.strokeStyle = line.color;
+      ctx.lineWidth = 3;
+      line.trail.forEach((point, index) => {
+        const alpha = line.completed ? 1 : (index / line.trail.length); // 完成后不渐隐
+        ctx.globalAlpha = alpha;
+        if (index === 0) {
+          ctx.moveTo(point.x, point.y);
+        } else {
+          ctx.lineTo(point.x, point.y);
+        }
+      });
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+</body>
+</html>

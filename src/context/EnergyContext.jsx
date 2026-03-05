@@ -13,7 +13,7 @@ export const USERS = {
     },
     ZHEN: {
         id: 'zhen',
-        name: '小真同学',
+        name: '小肴同学',
         keywords: ['思考', '减负', '在场', '投入']
     }
 };
