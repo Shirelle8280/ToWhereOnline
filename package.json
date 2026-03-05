@@ -11,6 +11,7 @@
     "@react-three/drei": "^9.88.6",
     "@react-three/fiber": "^8.13.7",
     "@supabase/supabase-js": "^2.90.1",
+    "browser-image-compression": "^2.0.2",
     "cesium": "^1.131.0",
     "date-fns": "^4.1.0",
     "framer-motion": "^11.0.17",

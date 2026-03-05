@@ -1,46 +1,20 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as Cesium from 'cesium';
 import { motion, AnimatePresence, useMotionValueEvent, useMotionValue } from 'framer-motion';
 
-// 主要地标点数据
-const pointsData = [
-  // 广东省和香港 - 黄色
-  { name: '深圳', lng: 114.0579, lat: 22.5431, color: '#FFFF00' },
-  { name: '香港', lng: 114.1694, lat: 22.3193, color: '#FFFF00' },
-  { name: '惠州', lng: 114.4168, lat: 23.1115, color: '#FFFF00' },
-  { name: '珠海', lng: 113.5767, lat: 22.2707, color: '#FFFF00' },
-  { name: '中山', lng: 113.392, lat: 22.521, color: '#FFFF00' },
-  { name: '东莞', lng: 113.760, lat: 23.020, color: '#FFFF00' },
-  { name: '外伶仃岛', lng: 114.0050, lat: 22.1150, color: '#FFFF00' },
-  { name: '南澳岛', lng: 117.0700, lat: 23.4400, color: '#FFFF00' },
-  { name: '河源', lng: 114.7000, lat: 23.7333, color: '#FFFF00' },
 
-  // 广西区域 - 绿色
-  { name: '桂林', lng: 110.2990, lat: 25.2740, color: '#00FF00' },
-
-  // 重庆 - 紫色
-  { name: '重庆', lng: 106.5516, lat: 29.5630, color: '#FF00FF' },
-
-  // 四川区域 - 蓝色
-  { name: '成都', lng: 104.0665, lat: 30.5728, color: '#0000FF' },
-  { name: '广元', lng: 105.8436, lat: 32.4416, color: '#0000FF' },
-  { name: '绵阳', lng: 104.6794, lat: 31.4677, color: '#0000FF' },
-  { name: '阿坝州', lng: 102.2214, lat: 31.8994, color: '#0000FF' },
-
-  // 台湾地区和马来西亚 - 红色
-  { name: '台北', lng: 121.5654, lat: 25.0330, color: '#FF0000' },
-  { name: '台南', lng: 120.2133, lat: 22.9908, color: '#FF0000' },
-  { name: '高雄', lng: 120.3014, lat: 22.6273, color: '#FF0000' },
-  { name: '马来西亚', lng: 101.9758, lat: 4.2105, color: '#FF0000' },
-];
-
-export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, scrollProgress = 0, scrollY: scrollYProp }) {
+export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, scrollProgress = 0, scrollY: scrollYProp, activeStage = -1, stageAnimating = true, onUserInteract, cityPoints: cityPointsProp = [] }) {
   const fallbackScrollY = useMotionValue(0);
   const scrollY = scrollYProp || fallbackScrollY;
+  const stageAnimationRef = useRef(null); // Tracks the current stage animation cleanup
+  const stageAnimatingRef = useRef(stageAnimating); // Keep a mutable ref for rAF loops
+  const moonPosRef = useRef(null); // Ref for tracking moon pos safely
   const cesiumContainer = useRef(null);
   const viewer = useRef(null);
-  const [showTicket, setShowTicket] = useState(false);
-  const [ticketImage, setTicketImage] = useState(null);
+  const starsRef = useRef(null); // Ref for tracking star primitive
+  const cityEntitiesRef = useRef([]); // Ref for tracking dynamically added city entities
+  const masterAngleRef = useRef(0); // Persistent global rotation phase
+  const lastTickTimeRef = useRef(performance.now());
 
   // 地图风格状态
   const [mapStyle, setMapStyle] = useState('satellite'); // 默认卫星图
@@ -66,60 +40,9 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
     }
   };
 
-  // 动画状态跟踪
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [currentAnimation, setCurrentAnimation] = useState(null);
-  const animationCleanupRef = useRef(null);
-  const latestAnimationRef = useRef(null); // 跟踪最新的动画ID
-
   // 相机状态保存
   const savedCameraState = useRef(null);
 
-  // 调试票据状态变化
-  useEffect(() => {
-    console.log(`票据状态变化: showTicket=${showTicket}, ticketImage=${ticketImage}`);
-  }, [showTicket, ticketImage]);
-
-  // 开发环境下添加到window对象，方便调试
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.testTicket = (cityName = '台北') => {
-        console.log(`手动测试票据: ${cityName}`);
-        const encodedCityName = encodeURIComponent(cityName);
-        const ticketPath = `/images/cities/${encodedCityName}/ticket.png`;
-        setShowTicket(true);
-        setTicketImage(ticketPath);
-        setTimeout(() => {
-          setShowTicket(false);
-          setTicketImage(null);
-        }, 3000);
-      };
-
-      // 测试动画切换功能
-      window.testAnimationSwitch = () => {
-        console.log('测试动画切换: 台北 -> 成都 -> 马来西亚');
-        setTimeout(() => onCityClick('台北'), 100);
-        setTimeout(() => onCityClick('成都'), 2000);
-        setTimeout(() => onCityClick('马来西亚'), 4000);
-      };
-
-      // 查看当前动画状态
-      window.getAnimationStatus = () => {
-        console.log('动画状态:', {
-          isAnimating,
-          currentAnimation,
-          latestAnimation: latestAnimationRef.current,
-          hasCleanup: !!animationCleanupRef.current
-        });
-      };
-
-      // 简单测试单个城市
-      window.testSingleCity = (cityName = '台北') => {
-        console.log(`测试单个城市: ${cityName}`);
-        onCityClick(cityName);
-      };
-    }
-  }, [isAnimating, currentAnimation]);
   const [showMoonPhotos, setShowMoonPhotos] = useState(false);
   const [currentMoonPhoto, setCurrentMoonPhoto] = useState(0);
 
@@ -177,6 +100,7 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
 
       // 创建最简单的 Viewer 配置
       viewer.current = new Cesium.Viewer(cesiumContainer.current, {
+        contextOptions: { webgl: { alpha: true } },
         baseLayerPicker: false,
         timeline: false,
         animation: false,
@@ -202,14 +126,39 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
       viewer.current.scene.globe.enableLighting = false;
       viewer.current.scene.globe.show = true;
 
-      // 在过渡模式下禁用相机交互
-      if (transitionMode) {
-        viewer.current.scene.screenSpaceCameraController.enableRotate = false;
-        viewer.current.scene.screenSpaceCameraController.enableTranslate = false;
-        viewer.current.scene.screenSpaceCameraController.enableZoom = false;
-        viewer.current.scene.screenSpaceCameraController.enableTilt = false;
-        viewer.current.scene.screenSpaceCameraController.enableLook = false;
-      }
+      // Performance: preload ancestor & sibling tiles for faster city close-ups
+      viewer.current.scene.globe.preloadAncestors = true;
+      viewer.current.scene.globe.preloadSiblings = true;
+      viewer.current.scene.globe.maximumScreenSpaceError = 1.5;
+      viewer.current.scene.globe.tileCacheSize = 1000; // Cache more tiles in memory
+
+      // Replace blurry default skybox with custom star particles
+      viewer.current.scene.skyBox = undefined;
+      viewer.current.scene.backgroundColor = new Cesium.Color(0, 0, 0, 0); // Transparent to show CSS gradient
+      const starPoints = viewer.current.scene.primitives.add(new Cesium.PointPrimitiveCollection());
+      starsRef.current = starPoints; // Store for rotation stabilization
+      for (let i = 0; i < 3000; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = 1e9;
+        starPoints.add({
+          position: new Cesium.Cartesian3(
+            r * Math.sin(phi) * Math.cos(theta),
+            r * Math.sin(phi) * Math.sin(theta),
+            r * Math.cos(phi)
+          ),
+          pixelSize: 0.8 + Math.random() * 1.8,
+          color: Cesium.Color.fromAlpha(Cesium.Color.WHITE, 0.5 + Math.random() * 0.5)
+        });
+      } // Higher quality tiles
+
+      // User interaction detection: when user touches the globe, notify parent
+      const handleUserTouch = () => {
+        if (onUserInteract) onUserInteract();
+      };
+      const canvas = viewer.current.cesiumWidget.canvas;
+      canvas.addEventListener('pointerdown', handleUserTouch);
+      canvas.addEventListener('wheel', handleUserTouch);
 
       // 移除默认的Ion影像层（需要token），改用本地地图资源
       viewer.current.imageryLayers.removeAll();
@@ -261,71 +210,22 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
 
       console.log('相机位置设置完成');
 
-      // 添加美观的地标点
-      console.log('开始添加城市点位，总数:', pointsData.length);
+      // 城市点位由独立的 useEffect 根据 cityPointsProp 动态管理
+      console.log('Cesium 初始化完成，等待城市数据加载...');
 
-      pointsData.forEach((pt, index) => {
-        try {
-          const position = Cesium.Cartesian3.fromDegrees(pt.lng, pt.lat, 0);
-
-          const entity = viewer.current.entities.add({
-            name: pt.name,
-            position: position,
-            point: {
-              pixelSize: new Cesium.CallbackProperty((time) => {
-                const phase = Cesium.JulianDate.secondsDifference(time, viewer.current.clock.currentTime) * 2 * Math.PI / 2; // 2秒周期
-                return 15 + Math.sin(phase) * 2;  // 较小内部圆，轻微呼吸
-              }, false),
-              color: Cesium.Color.WHITE.withAlpha(0.8),
-              outlineColor: Cesium.Color.WHITE.withAlpha(0.4),
-              outlineWidth: new Cesium.CallbackProperty((time) => {
-                const phase = Cesium.JulianDate.secondsDifference(time, viewer.current.clock.currentTime) * 2 * Math.PI / 2; // 同步周期
-                return 3 + Math.sin(phase) * 3;  // 外圈呼吸 0-6宽度
-              }, false),
-              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-              scaleByDistance: new Cesium.NearFarScalar(1.5e2, 1.5, 1.5e7, 0.5),
-            },
-            label: {
-              text: pt.name,
-              font: 'bold 16px PingFang SC, Microsoft YaHei, Arial, sans-serif',
-              fillColor: Cesium.Color.WHITE,
-              outlineColor: Cesium.Color.BLACK,
-              outlineWidth: 2,
-              style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-              pixelOffset: new Cesium.Cartesian2(0, -35),
-              showBackground: true,
-              backgroundColor: Cesium.Color.BLACK.withAlpha(0.7),
-              backgroundPadding: new Cesium.Cartesian2(10, 6),
-              scaleByDistance: new Cesium.NearFarScalar(1.5e2, 1.2, 1.5e7, 0.6),
-              horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-              verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-              scale: new Cesium.CallbackProperty((time) => {
-                const phase = Cesium.JulianDate.secondsDifference(time, viewer.current.clock.currentTime) * 2 * Math.PI / 2;
-                return 1 + Math.sin(phase) * 0.02;
-              }, false),
-            },
-            description: pt.name,
-            pointData: pt,
-          });
-
-          console.log(`[${index + 1}/${pointsData.length}] 成功添加标点:`, pt.name, '坐标:', pt.lng, pt.lat);
-        } catch (error) {
-          console.error(`添加标点 ${pt.name} 失败:`, error);
-        }
-      });
-
-      console.log('完成添加城市点位，当前实体数:', viewer.current.entities.values.length);
-
-      // 添加月球 - 调整大小和位置使其更容易看到
-      const moonPosition = Cesium.Cartesian3.fromDegrees(114 + 20, 23, 15000000); // 更近的距离，更容易看到
+      // 添加月球 - 保持位置持久性
+      if (!moonPosRef.current) {
+        moonPosRef.current = Cesium.Cartesian3.fromDegrees(114 + 20, 23, 15000000);
+      }
 
       const moonEntity = viewer.current.entities.add({
         name: '月球',
-        position: moonPosition,
+        position: new Cesium.CallbackProperty(() => moonPosRef.current, false),
         ellipsoid: {
           radii: new Cesium.Cartesian3(500000, 500000, 500000), // 放大月球半径，更容易看到
           material: new Cesium.ImageMaterialProperty({
             image: '/cesium/Assets/Textures/moonSmall.jpg',
+            color: Cesium.Color.WHITE,
             transparent: false
           }),
           outline: false, // 移除边框线
@@ -337,7 +237,7 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
       // 添加月球光晕效果 - 内层
       const moonGlowEntity = viewer.current.entities.add({
         name: '月球光晕',
-        position: moonPosition,
+        position: new Cesium.CallbackProperty(() => moonPosRef.current, false),
         ellipsoid: {
           radii: new Cesium.Cartesian3(550000, 550000, 550000), // 内层光晕
           material: new Cesium.ColorMaterialProperty(
@@ -357,7 +257,7 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
       // 添加羽化外层光晕
       const moonFeatherGlowEntity = viewer.current.entities.add({
         name: '月球羽化光晕',
-        position: moonPosition,
+        position: new Cesium.CallbackProperty(() => moonPosRef.current, false),
         ellipsoid: {
           radii: new Cesium.Cartesian3(600000, 600000, 600000), // 羽化外层
           material: new Cesium.ColorMaterialProperty(
@@ -377,7 +277,7 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
       // 添加最外层羽化
       const moonSoftGlowEntity = viewer.current.entities.add({
         name: '月球软羽化',
-        position: moonPosition,
+        position: new Cesium.CallbackProperty(() => moonPosRef.current, false),
         ellipsoid: {
           radii: new Cesium.Cartesian3(650000, 650000, 650000), // 最外层羽化
           material: new Cesium.ColorMaterialProperty(
@@ -395,8 +295,87 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
       });
 
       console.log('月球已添加到场景中（包含光晕效果）');
-      console.log('月球位置:', '经度 134°, 纬度 23°, 高度 15,000km');
-      console.log('提示: 缩放相机到高度 25,000km 以上可同时看到地球和月球');
+
+      // ========= Global Master Ticker =========
+      // This loop runs forever, keeping Moon and Stars moving regardless of stage
+      const tick = (time) => {
+        const dt = (time - lastTickTimeRef.current) / 16.666; // Normalize to 60fps
+        lastTickTimeRef.current = time;
+
+        const safeDt = Math.min(dt, 2.0); // Precision guard
+        // 20s per rotation calculation: (2 * Math.PI) / (20s * 60fps) ≈ 0.005236
+        masterAngleRef.current += 0.005236 * safeDt;
+        const earthAngle = masterAngleRef.current;
+
+        // 1. Update Moon (Physical Logic: Space -> ECEF)
+        const MOON_ORBIT_INCLINATION = Cesium.Math.toRadians(5.14);
+        const MOON_DISTANCE = 15000000;
+        const EARTH_MOON_RATIO = 30;
+        const moonOrbitAngle = earthAngle / EARTH_MOON_RATIO;
+
+        const moonX = Math.cos(moonOrbitAngle) * MOON_DISTANCE;
+        const moonY = Math.sin(moonOrbitAngle) * MOON_DISTANCE;
+        const moonZ_s = moonY * Math.sin(MOON_ORBIT_INCLINATION);
+        const moonY_s = moonY * Math.cos(MOON_ORBIT_INCLINATION);
+        const spacePos = new Cesium.Cartesian3(moonX, moonY_s, moonZ_s);
+
+        const rotateToEcef = Cesium.Matrix3.fromRotationZ(-earthAngle);
+        const ecefPos = Cesium.Matrix3.multiplyByVector(rotateToEcef, spacePos, new Cesium.Cartesian3());
+
+        if (moonPosRef.current) moonPosRef.current = ecefPos;
+
+        // 2. Update Stars (Stabilize in Space)
+        if (starsRef.current) {
+          const starRotation = Cesium.Matrix3.fromRotationZ(-earthAngle);
+          starsRef.current.modelMatrix = Cesium.Matrix4.fromRotationTranslation(starRotation);
+        }
+
+        requestAnimationFrame(tick);
+      };
+
+      // Start ticker with current time to avoid NaN
+      tick(performance.now());
+
+      // ========= Label Occlusion Post-Render Manager =========
+      // Hides overlapping labels to prevent clutter
+      const resolveLabelOcclusion = () => {
+        if (!viewer.current) return;
+        const labels = viewer.current.entities.values.filter(e => e.label);
+        const screenCoords = [];
+
+        // Reset visibility first (only for distance Check)
+        labels.forEach(e => {
+          const pos = e.position.getValue(viewer.current.clock.currentTime);
+          if (!pos) return;
+          const pixelPos = Cesium.SceneTransforms.worldToWindowCoordinates(viewer.current.scene, pos);
+          if (pixelPos) {
+            screenCoords.push({ entity: e, x: pixelPos.x, y: pixelPos.y, hidden: false });
+          }
+        });
+
+        // Simple distance-based occlusion Check (N^2 but fine for ~20 cities)
+        const MIN_DIST = 100; // Pixels
+        for (let i = 0; i < screenCoords.length; i++) {
+          if (screenCoords[i].hidden) continue;
+          for (let j = i + 1; j < screenCoords.length; j++) {
+            if (screenCoords[j].hidden) continue;
+            const dx = screenCoords[i].x - screenCoords[j].x;
+            const dy = screenCoords[i].y - screenCoords[j].y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < MIN_DIST * MIN_DIST) {
+              // Hide the one with lower "priority" (index) or just the later one
+              screenCoords[j].hidden = true;
+              screenCoords[j].entity.label.show = false;
+            }
+          }
+        }
+
+        // Show the non-hidden ones
+        screenCoords.forEach(c => {
+          if (!c.hidden) c.entity.label.show = true;
+        });
+      };
+      viewer.current.scene.postRender.addEventListener(resolveLabelOcclusion);
 
       // 添加点击事件监听器（仅在非过渡模式下）
       const clickHandler = (event) => {
@@ -440,6 +419,10 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
     return () => {
       try {
         if (viewer.current) {
+          // Extra cleanup for custom listeners
+          if (typeof resolveLabelOcclusion === 'function') {
+            viewer.current.scene.postRender.removeEventListener(resolveLabelOcclusion);
+          }
           viewer.current.destroy();
           viewer.current = null;
         }
@@ -449,60 +432,239 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
     };
   }, [goToCity]);
 
-  // 监听滚动进度变化，实时更新相机位置（仅在过渡模式下）
-  // 采用 useMotionValueEvent 实现更平滑的更新
-  const updateCamera = (progress) => {
-    if (!viewer.current || !transitionMode) return;
+  // === Dynamic Stage Animation System ===
+  // City tour list for Stage 2
+  const tourCities = ['深圳', '香港', '台北', '成都', '广元', '马来西亚', '珠海', '桂林'];
 
-    const distance = 50000000 - (progress * 45000000); // 从5000万米到500万米
-    const shenzhenLng = 114.0579;
-    const shenzhenLat = 22.5431;
+  // Sync stageAnimating ref
+  useEffect(() => {
+    stageAnimatingRef.current = stageAnimating;
+    if (!stageAnimating && stageAnimationRef.current) {
+      // Immediately cancel running animation when stageAnimating becomes false
+      stageAnimationRef.current();
+      stageAnimationRef.current = null;
+      // Also cancel any in-progress flyTo
+      if (viewer.current) viewer.current.camera.cancelFlight();
+    }
+  }, [stageAnimating]);
 
-    const cameraPosition = Cesium.Cartesian3.fromDegrees(
-      shenzhenLng + (1 - progress) * 20, // 逐渐接近深圳经度
-      shenzhenLat + (1 - progress) * 10,  // 逐渐接近深圳纬度
-      distance
-    );
+  useEffect(() => {
+    if (!viewer.current || activeStage < 0 || !stageAnimating) return;
 
-    viewer.current.camera.setView({
-      destination: cameraPosition,
-      orientation: {
-        heading: 0,
-        pitch: -Math.PI / 3 - (progress * Math.PI / 6), // 逐渐向下倾斜
-        roll: 0
+    // Cleanup previous stage animation
+    if (stageAnimationRef.current) {
+      stageAnimationRef.current();
+      stageAnimationRef.current = null;
+    }
+
+    console.log(`切换到场景阶段: ${activeStage}`);
+
+    if (activeStage === 0) {
+      let cancelled = false;
+
+      // Dynamic flyTo: Predict where the rotation will be after 2s
+      // Speed per second: 0.005236 * 60 = 0.31416 rad/s (Perfectly 1 rot / 20s)
+      const ROT_SPEED_PER_SEC = 0.31416;
+      const FLY_DURATION = 2;
+      const predictedAngle = masterAngleRef.current + (ROT_SPEED_PER_SEC * FLY_DURATION);
+
+      const startLng = 114;
+      const startLat = 32;
+      const endLng = startLng - (predictedAngle * 180 / Math.PI);
+      const startDest = Cesium.Cartesian3.fromDegrees(endLng, startLat, 35000000);
+
+      viewer.current.camera.flyTo({
+        destination: startDest,
+        orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
+        duration: FLY_DURATION,
+        complete: () => {
+          if (cancelled || !stageAnimatingRef.current) return;
+
+          // Force-sync immediately on arrival to eliminate prediction lag
+          const actualAngle = masterAngleRef.current;
+          const syncLng = startLng - (actualAngle * 180 / Math.PI);
+          viewer.current.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(syncLng, startLat, 35000000),
+            orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 }
+          });
+
+          let lastLoopTime = performance.now();
+          const orbitLoop = (time) => {
+            if (cancelled || !viewer.current || !stageAnimatingRef.current) return;
+            const dt = (time - lastLoopTime) / 16.666;
+            lastLoopTime = time;
+
+            const earthAngle = masterAngleRef.current;
+            const camLngAdjusted = startLng - (earthAngle * 180 / Math.PI);
+
+            viewer.current.camera.setView({
+              destination: Cesium.Cartesian3.fromDegrees(camLngAdjusted, startLat, 35000000),
+              orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 }
+            });
+
+            requestAnimationFrame(orbitLoop);
+          };
+          orbitLoop(performance.now());
+        }
+      });
+
+      stageAnimationRef.current = () => { cancelled = true; };
+    }
+    else if (activeStage === 1) {
+      let angle = 0;
+      let cancelled = false;
+
+      // Targeting China (approx 110, 35)
+      const startLng = 110;
+      const startLat = 15;
+      // Aligned with orbit start at angle=0 (lat becomes 15 + cos(0)*5 = 20)
+      const flightDest = Cesium.Cartesian3.fromDegrees(startLng, 20, 6000000);
+
+      viewer.current.camera.flyTo({
+        destination: flightDest,
+        orientation: { heading: 0, pitch: -Cesium.Math.toRadians(65), roll: 0 },
+        duration: 2,
+        complete: () => {
+          if (cancelled || !stageAnimatingRef.current) return;
+
+          // Force-sync to match orbitLoop entry (angle=0)
+          viewer.current.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(startLng, 20, 6000000),
+            orientation: { heading: 0, pitch: -Cesium.Math.toRadians(65), roll: 0 }
+          });
+
+          let lastLoopTime = performance.now();
+          const rotateLoop = (time) => {
+            if (cancelled || !viewer.current || !stageAnimatingRef.current) return;
+            const dt = (time - lastLoopTime) / 16.666;
+            lastLoopTime = time;
+
+            const camLng = startLng + Math.sin(angle) * 10;
+            const camLat = startLat + Math.cos(angle) * 5;
+            viewer.current.camera.setView({
+              destination: Cesium.Cartesian3.fromDegrees(camLng, camLat, 6000000),
+              orientation: { heading: angle * 0.4, pitch: -Cesium.Math.toRadians(65), roll: 0 }
+            });
+            angle += 0.006 * Math.min(dt, 2.0); // Faster speed for Stage 1 focus (China Overview)
+            requestAnimationFrame(rotateLoop);
+          };
+          rotateLoop(performance.now());
+        }
+      });
+
+      stageAnimationRef.current = () => { cancelled = true; };
+    }
+    else if (activeStage === 2) {
+      let cancelled = false;
+      let currentCityIndex = 0;
+
+      const getFurthestCity = (currentCityName) => {
+        const currentCoord = cityPositions[currentCityName];
+        if (!currentCoord) {
+          // Fallback: If current city not found, pick a random city from cityPositions if any exist
+          const availableCityNames = Object.keys(cityPositions);
+          if (availableCityNames.length > 0) {
+            return availableCityNames[Math.floor(Math.random() * availableCityNames.length)];
+          }
+          return null;
+        }
+
+        // Calculate all distances and filter out current
+        const availableCityNames = Object.keys(cityPositions);
+        const candidates = availableCityNames
+          .filter(name => name !== currentCityName)
+          .map(name => ({
+            name,
+            dist: cityPositions[name] ? Cesium.Cartesian3.distance(currentCoord, cityPositions[name]) : 0
+          }))
+          .sort((a, b) => b.dist - a.dist);
+
+        // Pick randomly from the top 3 furthest to avoid A-B-A-B oscillation
+        const topCount = Math.min(3, candidates.length);
+        const choice = Math.floor(Math.random() * topCount);
+        return candidates[choice].name;
+      };
+
+      const runDroneOrbit = (cityName, cityCoord) => {
+        if (cancelled || !viewer.current || !stageAnimatingRef.current || !cityCoord) {
+          console.warn('Drone orbit skipped: invalid city or animation cancelled');
+          return;
+        }
+
+        const carto = Cesium.Cartographic.fromCartesian(cityCoord);
+        const lng = Cesium.Math.toDegrees(carto.longitude);
+        const lat = Cesium.Math.toDegrees(carto.latitude);
+        const orbitHeight = 350000;
+
+        viewer.current.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(lng, lat + 1, orbitHeight),
+          orientation: { heading: Math.PI, pitch: Cesium.Math.toRadians(-45), roll: 0 },
+          duration: 3,
+          complete: () => {
+            if (cancelled || !stageAnimatingRef.current) return;
+
+            let orbitAngle = 0;
+            let lastLoopTime = performance.now();
+            const startDroneLoop = (time) => {
+              if (cancelled || !viewer.current || !stageAnimatingRef.current) return;
+              const dt = (time - lastLoopTime) / 16.666;
+              lastLoopTime = time;
+
+              orbitAngle += 0.005 * Math.min(dt, 2.0);
+              const currentHeight = 350000 - (Math.min(orbitAngle, Math.PI) / Math.PI) * 200000;
+
+              const dLng = lng + Math.sin(orbitAngle) * 2;
+              const dLat = lat + Math.cos(orbitAngle) * 1;
+
+              viewer.current.camera.setView({
+                destination: Cesium.Cartesian3.fromDegrees(dLng, dLat, currentHeight),
+                orientation: {
+                  heading: orbitAngle + Math.PI,
+                  pitch: Cesium.Math.toRadians(-45),
+                  roll: 0
+                }
+              });
+
+              if (orbitAngle < Math.PI * 2) {
+                requestAnimationFrame(startDroneLoop);
+              } else {
+                // Done with this city, pick furthest next city
+                const nextCity = getFurthestCity(cityName);
+                setTimeout(() => {
+                  if (!cancelled && nextCity) {
+                    const nextCoord = cityPositions[nextCity];
+                    if (nextCoord) {
+                      runDroneOrbit(nextCity, nextCoord);
+                    }
+                  }
+                }, 500);
+              }
+            };
+            startDroneLoop(performance.now());
+          }
+        });
+      };
+
+      // Start with a city that has valid coordinates
+      const firstValidCity = Object.keys(cityPositions)[0];
+      if (firstValidCity && cityPositions[firstValidCity]) {
+        runDroneOrbit(firstValidCity, cityPositions[firstValidCity]);
+      } else {
+        console.log('No valid cities for drone tour, skipping Stage 2 animation');
       }
-    });
-  };
+      stageAnimationRef.current = () => { cancelled = true; };
+    }
 
-  useEffect(() => {
-    // Initial sync
-    if (transitionMode) updateCamera(scrollProgress);
-  }, [transitionMode]);
+    return () => {
+      if (stageAnimationRef.current) {
+        stageAnimationRef.current();
+        stageAnimationRef.current = null;
+      }
+    };
+  }, [activeStage, stageAnimating]);
 
-  // We use useMotionValueEvent if scrollY is provided
-  useMotionValueEvent(scrollY, "change", (latest) => {
-    if (!transitionMode) return;
-    const start = window.innerHeight * 1.0;
-    const end = window.innerHeight * 2.0;
-    const progress = Math.max(0, Math.min((latest - start) / (end - start), 1));
-    updateCamera(progress);
-  });
+  // Camera interaction is always enabled - user can interrupt animations at any time
 
-  // 动态控制相机交互：只有在滚动接近完成时才启用
-  useEffect(() => {
-    if (!viewer.current || !transitionMode) return;
-
-    const shouldEnableInteraction = scrollProgress > 0.95;
-
-    viewer.current.scene.screenSpaceCameraController.enableRotate = shouldEnableInteraction;
-    viewer.current.scene.screenSpaceCameraController.enableTranslate = shouldEnableInteraction;
-    viewer.current.scene.screenSpaceCameraController.enableZoom = shouldEnableInteraction;
-    viewer.current.scene.screenSpaceCameraController.enableTilt = shouldEnableInteraction;
-    viewer.current.scene.screenSpaceCameraController.enableLook = shouldEnableInteraction;
-
-    console.log(`相机交互${shouldEnableInteraction ? '已启用' : '已禁用'}, 滚动进度: ${(scrollProgress * 100).toFixed(1)}%`);
-
-  }, [transitionMode, scrollProgress]);
 
   // 清理当前动画的函数
   const cleanupCurrentAnimation = () => {
@@ -518,277 +680,106 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
     // 注意：不清理 latestAnimationRef，因为新动画已经设置了新的ID
   };
 
-  // 城市坐标配置
-  const cityPositions = {
-    '深圳': Cesium.Cartesian3.fromDegrees(114.0579, 22.5431, 0),
-    '香港': Cesium.Cartesian3.fromDegrees(114.1694, 22.3193, 0),
-    '东莞': Cesium.Cartesian3.fromDegrees(113.7518, 23.0207, 0),
-    '珠海': Cesium.Cartesian3.fromDegrees(113.5767, 22.2707, 0),
-    '南澳岛': Cesium.Cartesian3.fromDegrees(117.027, 23.419, 0),
-    '中山': Cesium.Cartesian3.fromDegrees(113.3928, 22.5159, 0),
-    '惠州': Cesium.Cartesian3.fromDegrees(114.4168, 23.1115, 0),
-    '河源': Cesium.Cartesian3.fromDegrees(114.7000, 23.7333, 0),
-    '桂林': Cesium.Cartesian3.fromDegrees(110.2990, 25.2740, 0),
-    '重庆': Cesium.Cartesian3.fromDegrees(106.5516, 29.5630, 0),
-    '阿坝州': Cesium.Cartesian3.fromDegrees(102.2214, 31.8994, 0),
-    '台北': Cesium.Cartesian3.fromDegrees(121.5654, 25.0330, 0),
-    '台南': Cesium.Cartesian3.fromDegrees(120.2133, 22.9908, 0),
-    '高雄': Cesium.Cartesian3.fromDegrees(120.3014, 22.6273, 0),
-    '成都': Cesium.Cartesian3.fromDegrees(104.0665, 30.5723, 0),
-    '绵阳': Cesium.Cartesian3.fromDegrees(104.6796, 31.4675, 0),
-    '广元': Cesium.Cartesian3.fromDegrees(105.8434, 32.4355, 0),
-    '外伶仃岛': Cesium.Cartesian3.fromDegrees(114.0050, 22.1150, 0),
-    '马来西亚': Cesium.Cartesian3.fromDegrees(101.9758, 4.2105, 0), // 吉隆坡坐标
-  };
+  // ========= Dynamic City Points from Supabase =========
+  useEffect(() => {
+    if (!viewer.current || !cityPointsProp || cityPointsProp.length === 0) return;
 
-  // 交通工具配置（移除svg，改为参数传递）
-  const vehicleConfigs = {
-    plane: { heightMultiplier: 500000, dashLength: 20 },
-    car: { heightMultiplier: 10000, dashLength: 10 },
-    train: { heightMultiplier: 0, dashLength: 15 },
-    ship: { heightMultiplier: 5000, dashLength: 15 },
-  };
-
-  const startTransition = (cityName, fromCity, toCity, vehicleType, svg) => {
-    if (!viewer.current) return;
-
-    // 如果当前有动画在进行，先取消它
-    if (isAnimating) {
-      console.log(`取消当前动画，切换到新目标: ${cityName}`);
-      cleanupCurrentAnimation();
-    }
-
-    // 创建一个唯一的动画ID来跟踪这个特定的动画
-    const animationId = `${cityName}_${Date.now()}`;
-    console.log(`开始新动画: ${animationId}`);
-
-    // 设置为最新的动画ID
-    latestAnimationRef.current = animationId;
-
-    // 设置新的动画状态
-    setIsAnimating(true);
-    setCurrentAnimation(animationId);
-
-    // 为飞机、火车、船显示票据
-    if (['plane', 'train', 'ship'].includes(vehicleType)) {
-      // 对城市名进行URL编码以支持中文字符
-      const encodedCityName = encodeURIComponent(cityName);
-      const ticketPath = `/images/cities/${encodedCityName}/ticket.png`;
-      setShowTicket(true);
-      setTicketImage(ticketPath);
-      console.log(`显示票据: ${cityName} - ${ticketPath}`);
-    } else {
-      setShowTicket(false);
-    }
-
-    const fromPos = cityPositions[fromCity];
-    const toPos = cityPositions[toCity];
-
-    // 检查坐标是否存在
-    if (!fromPos || !toPos) {
-      console.error(`城市坐标缺失: fromCity=${fromCity}, toCity=${toCity}`);
-      console.error(`fromPos=${fromPos}, toPos=${toPos}`);
-      console.error('可用城市:', Object.keys(cityPositions));
-      setShowTicket(false);
-      setTicketImage(null);
-      return;
-    }
-
-    console.log(`开始动画: ${fromCity} -> ${toCity} (${vehicleType})`);
-
-    const distance = Cesium.Cartesian3.distance(fromPos, toPos);
-    const minDuration = 3000;
-    const maxDuration = 5000;
-    const maxDistance = 2000000;
-    const duration = minDuration + Math.min(distance / maxDistance, 1) * (maxDuration - minDuration);
-
-    const config = vehicleConfigs[vehicleType];
-    const pathPositions = [];
-    const steps = 100;
-    for (let i = 0; i <= steps; i++) {
-      const fraction = i / steps;
-      const height = Math.sin(fraction * Math.PI) * config.heightMultiplier;
-      const pos = Cesium.Cartesian3.lerp(fromPos, toPos, fraction, new Cesium.Cartesian3());
-      Cesium.Cartesian3.add(pos, Cesium.Cartesian3.multiplyByScalar(Cesium.Cartesian3.normalize(pos, new Cesium.Cartesian3()), height, new Cesium.Cartesian3()), pos);
-      pathPositions.push(pos);
-    }
-
-    viewer.current.entities.add({
-      polyline: {
-        positions: pathPositions,
-        width: 4,
-        material: new Cesium.PolylineDashMaterialProperty({
-          color: Cesium.Color.WHITE.withAlpha(0.8),
-          dashLength: config.dashLength
-        }),
-      }
-    });
-
-    const midLon = (Cesium.Cartographic.fromCartesian(fromPos).longitude + Cesium.Cartographic.fromCartesian(toPos).longitude) / 2;
-    const midLat = (Cesium.Cartographic.fromCartesian(fromPos).latitude + Cesium.Cartographic.fromCartesian(toPos).latitude) / 2;
-
-    // 计算合适的高度，使路径占屏幕宽度1/3
-    // 假设FOV 60度 (PI/3 rad)
-    const fov = Math.PI / 3;
-    const effectiveAngle = fov / 3; // 1/3 屏幕
-    const cameraHeight = (distance / 2) / Math.tan(effectiveAngle / 2);
-
-    let cameraFlyPromise = viewer.current.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(midLon * (180 / Math.PI), midLat * (180 / Math.PI), cameraHeight),
-      duration: 2,
-      complete: () => {
-        // 检查这个特定的动画是否仍然是当前动画
-        if (animationCleanupRef.current === null) {
-          console.log(`相机飞行完成但动画已被取消: ${cityName}`);
-          return;
-        }
-
-        // 确保在动画开始前票据已经准备好显示
-        if (['plane', 'train', 'ship'].includes(vehicleType)) {
-          console.log(`动画开始，显示票据状态: showTicket=${showTicket}, ticketImage=${ticketImage}`);
-        }
-        animateVehicle(pathPositions, cityName, svg, duration, animationId);
-      }
-    });
-
-    // 设置清理函数
-    animationCleanupRef.current = () => {
-      // 取消相机飞行
-      if (cameraFlyPromise && cameraFlyPromise.cancel) {
-        cameraFlyPromise.cancel();
-      }
-
-      // 清理所有实体（轨迹线和载具）
-      if (viewer.current && viewer.current.entities) {
-        const entitiesToRemove = [];
-        viewer.current.entities.values.forEach(entity => {
-          // 移除所有非城市点的实体（轨迹、载具、尾迹等）
-          if (!entity.pointData && !entity.isMoon && entity.name !== '月球光晕' && entity.name !== '月球羽化光晕' && entity.name !== '月球软羽化') {
-            entitiesToRemove.push(entity);
-          }
-        });
-        entitiesToRemove.forEach(entity => {
+    // Remove previously added city entities
+    cityEntitiesRef.current.forEach(entity => {
+      try {
+        if (viewer.current && viewer.current.entities.contains(entity)) {
           viewer.current.entities.remove(entity);
-        });
-      }
-    };
-  };
-
-  const animateVehicle = (pathPositions, cityName, svg, duration, currentAnimationId) => {
-    let startTime = Date.now();
-    let vehicleEntity = null; // 局部变量，每次动画都重新创建
-    let requestId = null;
-
-    const animate = () => {
-      // 检查动画是否被取消（通过检查cleanup函数是否还存在）
-      if (animationCleanupRef.current === null) {
-        console.log(`载具动画被取消: ${cityName}`);
-        if (vehicleEntity && viewer.current) {
-          viewer.current.entities.remove(vehicleEntity);
         }
-        return;
-      }
+      } catch (e) { /* entity may already be removed */ }
+    });
+    cityEntitiesRef.current = [];
 
-      const elapsed = Date.now() - startTime;
-      const fraction = Math.min(elapsed / duration, 1);
-      const index = Math.floor(fraction * (pathPositions.length - 1));
+    console.log('动态加载城市点位，总数:', cityPointsProp.length);
 
-      if (fraction >= 1) {
-        // 检查这个动画是否仍然是最新的动画
-        if (latestAnimationRef.current !== currentAnimationId) {
-          console.log(`动画完成但已被更新的动画取代，不执行跳转: ${cityName}, 当前最新: ${latestAnimationRef.current}`);
-          if (vehicleEntity && viewer.current) {
-            viewer.current.entities.remove(vehicleEntity);
-          }
-          return;
-        }
+    cityPointsProp.forEach((pt, index) => {
+      try {
+        const position = Cesium.Cartesian3.fromDegrees(pt.lng, pt.lat, 0);
 
-        // 再次检查动画是否仍然有效（避免被中断后仍然跳转）
-        if (animationCleanupRef.current === null) {
-          console.log(`动画已在完成前被取消，不执行跳转: ${cityName}`);
-          if (vehicleEntity && viewer.current) {
-            viewer.current.entities.remove(vehicleEntity);
-          }
-          return;
-        }
-
-        // 动画完成，清理状态
-        if (vehicleEntity) {
-          viewer.current.entities.remove(vehicleEntity);
-          vehicleEntity = null;
-        }
-        setIsAnimating(false);
-        setCurrentAnimation(null);
-        setShowTicket(false);
-        setTicketImage(null);
-        animationCleanupRef.current = null;
-
-        console.log(`动画完成，跳转到: ${cityName} (ID: ${currentAnimationId})`);
-        if (goToCity) goToCity(cityName);
-        return;
-      }
-
-      if (!vehicleEntity) {
-        vehicleEntity = viewer.current.entities.add({
-          position: pathPositions[0],
-          billboard: {
-            image: svg,
-            width: 48,
-            height: 48,
-            scale: 1.2,
-            rotation: 0,
-          },
-        });
-      }
-
-      if (index < pathPositions.length - 1) {
-        const currentCart = Cesium.Cartographic.fromCartesian(pathPositions[index]);
-        const nextCart = Cesium.Cartographic.fromCartesian(pathPositions[index + 1]);
-        const lon1 = currentCart.longitude;
-        const lat1 = currentCart.latitude;
-        const lon2 = nextCart.longitude;
-        const lat2 = nextCart.latitude;
-        const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
-        const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
-        let bearing = Math.atan2(y, x);
-        bearing = -bearing;
-        vehicleEntity.billboard.rotation.setValue(bearing);
-      }
-      vehicleEntity.position.setValue(pathPositions[index]);
-
-      if (index % 5 === 0) {
-        viewer.current.entities.add({
-          position: pathPositions[index],
+        const entity = viewer.current.entities.add({
+          name: pt.name,
+          position: position,
           point: {
-            pixelSize: 5,
-            color: Cesium.Color.WHITE.withAlpha(0.5 - fraction * 0.5),
+            pixelSize: new Cesium.CallbackProperty((time) => {
+              const phase = Cesium.JulianDate.secondsDifference(time, viewer.current.clock.currentTime) * 2 * Math.PI / 2;
+              return 15 + Math.sin(phase) * 2;
+            }, false),
+            color: Cesium.Color.WHITE.withAlpha(0.8),
+            outlineColor: Cesium.Color.WHITE.withAlpha(0.4),
+            outlineWidth: new Cesium.CallbackProperty((time) => {
+              const phase = Cesium.JulianDate.secondsDifference(time, viewer.current.clock.currentTime) * 2 * Math.PI / 2;
+              return 3 + Math.sin(phase) * 3;
+            }, false),
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+            scaleByDistance: new Cesium.NearFarScalar(1.5e2, 1.5, 1.5e7, 0.5),
           },
+          label: {
+            text: pt.name,
+            font: 'bold 16px PingFang SC, Microsoft YaHei, Arial, sans-serif',
+            fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cesium.Cartesian2(0, -35),
+            showBackground: true,
+            backgroundColor: Cesium.Color.BLACK.withAlpha(0.7),
+            backgroundPadding: new Cesium.Cartesian2(10, 6),
+            scaleByDistance: new Cesium.NearFarScalar(1.5e2, 1.2, 1.5e7, 0.6),
+            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            scale: new Cesium.CallbackProperty((time) => {
+              const phase = Cesium.JulianDate.secondsDifference(time, viewer.current.clock.currentTime) * 2 * Math.PI / 2;
+              return 1 + Math.sin(phase) * 0.02;
+            }, false),
+          },
+          description: pt.name,
+          pointData: pt,
         });
+
+        cityEntitiesRef.current.push(entity);
+        console.log(`[${index + 1}/${cityPointsProp.length}] 动态添加标点:`, pt.name);
+      } catch (error) {
+        console.error(`动态添加标点 ${pt.name} 失败:`, error);
       }
+    });
 
-      requestId = requestAnimationFrame(animate);
-    };
+    console.log('动态城市点位加载完成，当前实体数:', viewer.current.entities.values.length);
+  }, [cityPointsProp]);
 
-    // 更新清理函数以包含载具动画的取消
-    const originalCleanup = animationCleanupRef.current;
-    animationCleanupRef.current = () => {
-      if (originalCleanup) originalCleanup();
+  // 城市坐标配置（从 cityPointsProp 动态生成）
+  const cityPositions = useMemo(() => {
+    const positions = {};
+    if (cityPointsProp && cityPointsProp.length > 0) {
+      cityPointsProp.forEach(pt => {
+        positions[pt.name] = Cesium.Cartesian3.fromDegrees(pt.lng, pt.lat, 0);
+      });
+    }
+    return positions;
+  }, [cityPointsProp]);
 
-      // 取消动画帧
-      if (requestId) {
-        cancelAnimationFrame(requestId);
-        requestId = null;
-      }
-
-      // 清理载具实体
-      if (vehicleEntity && viewer.current) {
-        viewer.current.entities.remove(vehicleEntity);
-        vehicleEntity = null;
-      }
-    };
-
-    animate();
-  };
+  // 城市连线关系（保留供将来动效展示使用）
+  const CITY_CONNECTIONS = [
+    { from: '深圳', to: '东莞', type: 'car' },
+    { from: '深圳', to: '珠海', type: 'car' },
+    { from: '深圳', to: '南澳岛', type: 'car' },
+    { from: '珠海', to: '中山', type: 'car' },
+    { from: '中山', to: '惠州', type: 'car' },
+    { from: '深圳', to: '河源', type: 'car' },
+    { from: '深圳', to: '桂林', type: 'car' },
+    { from: '桂林', to: '重庆', type: 'car' },
+    { from: '重庆', to: '广元', type: 'car' },
+    { from: '成都', to: '阿坝州', type: 'car' },
+    { from: '台北', to: '台南', type: 'train' },
+    { from: '台南', to: '高雄', type: 'train' },
+    { from: '成都', to: '绵阳', type: 'car' },
+    { from: '香港', to: '台北', type: 'plane' },
+    { from: '深圳', to: '外伶仃岛', type: 'ship' },
+    { from: '深圳', to: '马来西亚', type: 'plane' },
+  ];
 
   const onCityClick = (cityName) => {
     // 保存当前相机状态，以便返回地球页时恢复
@@ -804,63 +795,8 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
       console.log('保存当前相机状态，用于返回时恢复');
     }
 
-    switch (cityName) {
-      case '东莞':
-        startTransition(cityName, '深圳', cityName, 'car', '/car.svg');
-        break;
-      case '珠海':
-        startTransition(cityName, '深圳', cityName, 'car', '/car.svg');
-        break;
-      case '南澳岛':
-        startTransition(cityName, '深圳', cityName, 'car', '/car2.svg');
-        break;
-      case '中山':
-        startTransition(cityName, '珠海', cityName, 'car', '/car.svg');
-        break;
-      case '惠州':
-        startTransition(cityName, '中山', cityName, 'car', '/car2.svg');
-        break;
-      case '河源':
-        startTransition(cityName, '深圳', cityName, 'car', '/car2.svg');
-        break;
-      case '桂林':
-        startTransition(cityName, '深圳', cityName, 'car', '/car.svg');
-        break;
-      case '重庆':
-        startTransition(cityName, '桂林', cityName, 'car', '/car.svg');
-        break;
-      case '广元':
-        startTransition(cityName, '重庆', cityName, 'car', '/car.svg');
-        break;
-      case '阿坝州':
-        startTransition(cityName, '成都', cityName, 'car', '/car.svg');
-        break;
-      case '台南':
-        startTransition(cityName, '台北', cityName, 'train', '/train.svg');
-        break;
-      case '高雄':
-        startTransition(cityName, '台南', cityName, 'train', '/train3.svg');
-        break;
-      case '成都':
-        // 直接跳转，不显示路径动画
-        if (goToCity) goToCity(cityName);
-        break;
-      case '绵阳':
-        startTransition(cityName, '成都', cityName, 'car', '/car2.svg');
-        break;
-      case '台北':
-        startTransition(cityName, '香港', cityName, 'plane', '/airplane1.svg');
-        break;
-      case '外伶仃岛':
-        startTransition(cityName, '深圳', cityName, 'ship', '/ship.svg');
-        break;
-      case '马来西亚':
-        startTransition(cityName, '深圳', cityName, 'plane', '/airplane1.svg');
-        break;
-      default:
-        if (goToCity) goToCity(cityName);
-        break;
-    }
+    // 直接跳转，不显示路径动画
+    if (goToCity) goToCity(cityName);
   };
 
   // 月球照片触控滑动相关状态
@@ -961,149 +897,6 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
 
   return (
     <div ref={cesiumContainer} style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', position: 'relative' }}>
-      {/* 地图风格切换按钮 */}
-      {!transitionMode && (
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}
-        >
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '12px',
-              padding: '12px 20px',
-              color: '#fff',
-              fontSize: '14px',
-              fontFamily: 'PingFang SC, Microsoft YaHei, Arial, sans-serif',
-              cursor: 'pointer',
-              backdropFilter: 'blur(10px)',
-              transition: 'all 0.3s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
-              e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-              e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-            }}
-          >
-            <span style={{ fontSize: '16px' }}>🗺️</span>
-            <span>{mapStyles[mapStyle]?.name || '地图'}</span>
-            <motion.span
-              animate={{ rotate: showMapStyleMenu ? 180 : 0 }}
-              style={{ fontSize: '12px', opacity: 0.7 }}
-            >
-              ▼
-            </motion.span>
-          </motion.button>
-
-          {/* 地图风格选择菜单 */}
-          <AnimatePresence>
-            {showMapStyleMenu && (
-              <motion.div
-                initial={{ opacity: 0, height: 0, y: -10 }}
-                animate={{ opacity: 1, height: 'auto', y: 0 }}
-                exit={{ opacity: 0, height: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                style={{
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                  borderRadius: '12px',
-                  padding: '8px',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                  minWidth: '120px',
-                  overflow: 'hidden',
-                }}
-              >
-                {Object.entries(mapStyles).map(([key, config]) => (
-                  <motion.button
-                    key={key}
-                    whileHover={{ scale: 1.02, x: 5 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setMapStyle(key)}
-                    style={{
-                      backgroundColor: mapStyle === key ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      color: '#fff',
-                      fontSize: '13px',
-                      fontFamily: 'PingFang SC, Microsoft YaHei, Arial, sans-serif',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    {config.name}
-                  </motion.button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      )}
-
-      {/* 票据显示 */}
-      <AnimatePresence>
-        {showTicket && ticketImage && (
-          <motion.div
-            key="ticket"
-            initial={{ opacity: 0, scale: 0.8, y: 50 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 50 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            style={{
-              position: 'absolute',
-              bottom: '10%',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              zIndex: 1000,
-              textAlign: 'center',
-            }}
-          >
-            <img
-              src={ticketImage}
-              alt="旅程票据"
-              style={{
-                maxWidth: '400px',
-                maxHeight: '300px',
-                borderRadius: '12px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-                objectFit: 'contain'
-              }}
-              onError={(e) => {
-                console.log(`票据图片加载失败: ${ticketImage}`);
-                e.target.style.display = 'none';
-                setShowTicket(false);
-              }}
-              onLoad={() => {
-                console.log(`票据图片加载成功: ${ticketImage}`);
-              }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* 月球照片浏览器 - 触控滑动版本 */}
       {showMoonPhotos && (

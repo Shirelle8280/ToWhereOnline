@@ -10,6 +10,9 @@ function ParticleSystem({ mousePos, config }) {
   const [particleData, setParticleData] = useState(null);
   const { count, textRatio, textOpacityMin, textOpacityMax, bgOpacityMin, bgOpacityMax, textSize, bgSize, glowIntensity } = config;
 
+  const curPos = useMemo(() => new Float32Array(count * 3), [count]);
+  const vels = useMemo(() => new Float32Array(count * 3), [count]);
+
   // We only regenerate text points and spatial distribution if count or textRatio changes
   useEffect(() => {
     const generateParticles = async () => {
@@ -66,19 +69,15 @@ function ParticleSystem({ mousePos, config }) {
           targetPositions[i3 + 2] = (Math.random() - 0.5) * 10;
         }
       }
+
+      // Initialize curPos with targetPositions immediately to skip the fly-in effect
+      curPos.set(targetPositions);
+
       setParticleData({ targetPositions, isTextArray, randomAlphas });
     };
 
     generateParticles();
-  }, [count, textRatio]);
-
-  const curPos = useMemo(() => {
-    const pos = new Float32Array(count * 3);
-    for (let i = 0; i < count * 3; i++) pos[i] = (Math.random() - 0.5) * 60;
-    return pos;
-  }, [count]);
-
-  const vels = useMemo(() => new Float32Array(count * 3), [count]);
+  }, [count, textRatio, curPos]);
 
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
@@ -120,8 +119,8 @@ function ParticleSystem({ mousePos, config }) {
       const dx = curPos[i3] - mouse.x;
       const dy = curPos[i3 + 1] - mouse.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 2.0) {
-        const ease = Math.pow(1 - dist / 2.0, 2);
+      if (dist < 1.0) {
+        const ease = Math.pow(1 - dist / 1.0, 2);
         vels[i3] += dx * ease * 0.1;
         vels[i3 + 1] += dy * ease * 0.1;
       }

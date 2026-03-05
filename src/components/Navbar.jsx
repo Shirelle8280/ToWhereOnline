@@ -5,7 +5,7 @@ const Navbar = ({ activeTab, setTab, isDarkMode }) => {
     const tabs = [
         { id: 'keywords', label: '新年关键词' },
         { id: 'towhere', label: '一路向哪' },
-        { id: 'breaking', label: '初时集' },
+        { id: 'breaking', label: '初时' },
     ];
 
     return (
