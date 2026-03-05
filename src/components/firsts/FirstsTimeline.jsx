@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabaseClient';
-import { uploadImage } from '../../lib/githubStorage';
+import { uploadToSupabase } from '../../lib/supabaseStorage';
 import CameraCapture from './CameraCapture';
 import './FirstsTimeline.css';
 
@@ -136,6 +136,27 @@ export default function FirstsTimeline() {
         return acc;
     }, {});
 
+    // For better masonry rendering, split allImages into columns
+    const allImages = useMemo(() => {
+        const imgs = [];
+        records.forEach(r => {
+            if (r.images && r.images.length > 0) {
+                r.images.forEach(url => {
+                    imgs.push({ url, recordId: r.id, date: r.date, description: r.description });
+                });
+            }
+        });
+        return imgs;
+    }, [records]);
+
+    const galleryColumns = useMemo(() => {
+        const cols = [[], []]; // 2 columns for the sidebar gallery
+        allImages.forEach((img, i) => {
+            cols[i % 2].push(img);
+        });
+        return cols;
+    }, [allImages]);
+
     const sortedDates = Object.keys(groupedRecords).sort();
 
     const [useCamera, setUseCamera] = useState(false);
@@ -254,11 +275,11 @@ export default function FirstsTimeline() {
         if (!file) return;
         setSaving(true);
         try {
-            const { publicUrl } = await uploadImage(file, 'firsts');
+            const { publicUrl } = await uploadToSupabase(file, 'firsts-images');
             setNewImages([...newImages, publicUrl]);
         } catch (error) {
             console.error('Error uploading image:', error);
-            alert(`图片上传失败: ${error.message || '请检查 GitHub 存储配置'}`);
+            alert(`图片上传失败: ${error.message || '请检查 Supabase 存储配置'}`);
         } finally {
             setSaving(false);
         }
@@ -271,13 +292,14 @@ export default function FirstsTimeline() {
             // Convert base64 to blob
             const res = await fetch(dataUrl);
             const blob = await res.blob();
-            blob.name = 'camera-capture.jpg';
+            // Assign a dummy name for extension detection
+            const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
 
-            const { publicUrl } = await uploadImage(blob, 'firsts');
+            const { publicUrl } = await uploadToSupabase(file, 'firsts-images');
             setNewImages([...newImages, publicUrl]);
         } catch (error) {
             console.error('Error saving taken photo:', error);
-            alert(`拍照上传失败: ${error.message || '请检查 GitHub 存储配置'}`);
+            alert(`拍照上传失败: ${error.message || '请检查 Supabase 存储配置'}`);
         } finally {
             setSaving(false);
         }
@@ -301,17 +323,7 @@ export default function FirstsTimeline() {
         }));
     }, [records]);
 
-    const allImages = useMemo(() => {
-        const imgs = [];
-        records.forEach(r => {
-            if (r.images && r.images.length > 0) {
-                r.images.forEach(url => {
-                    imgs.push({ url, recordId: r.id, date: r.date, description: r.description });
-                });
-            }
-        });
-        return imgs;
-    }, [records]);
+
 
     const scrollToRecord = (record) => {
         const targetId = record.recordId || `${record.date}-${record.description}`;
@@ -573,6 +585,15 @@ export default function FirstsTimeline() {
                                                             {record.extraText}
                                                         </blockquote>
                                                     )}
+                                                    {record.images && record.images.length > 0 && (
+                                                        <div className="timeline-event-images">
+                                                            {record.images.map((img, i) => (
+                                                                <div key={i} className="timeline-image-wrapper">
+                                                                    <img src={img} alt="memory" loading="lazy" />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div
                                                     className="timeline-event-delete-icon"
@@ -598,9 +619,13 @@ export default function FirstsTimeline() {
                                 {allImages.length === 0 ? (
                                     <div className="gallery-empty">暂无图片</div>
                                 ) : (
-                                    allImages.map((imgObj, i) => (
-                                        <div key={i} className="gallery-item" onClick={() => scrollToRecord(imgObj)}>
-                                            <img src={imgObj.url} alt="memory" loading="lazy" />
+                                    galleryColumns.map((col, colIdx) => (
+                                        <div key={colIdx} className="gallery-column">
+                                            {col.map((imgObj, i) => (
+                                                <div key={i} className="gallery-item" onClick={() => scrollToRecord(imgObj)}>
+                                                    <img src={imgObj.url} alt="memory" loading="lazy" />
+                                                </div>
+                                            ))}
                                         </div>
                                     ))
                                 )}

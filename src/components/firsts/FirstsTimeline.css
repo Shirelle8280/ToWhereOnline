@@ -811,48 +811,49 @@
 
 /* Right Column */
 .firsts-gallery {
-    flex: 0 0 350px;
+    flex: 0 0 320px;
     padding-top: 40px;
     overflow-y: auto;
     padding-left: 10px;
-    padding-right: 10px;
+    padding-right: 15px;
 }
 
-.firsts-gallery::-webkit-scrollbar {
-    width: 4px;
+.timeline-event-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
 }
 
-.firsts-gallery::-webkit-scrollbar-thumb {
-    background: rgba(246, 190, 200, 0.3);
-    border-radius: 2px;
+.timeline-image-wrapper {
+    width: 120px;
+    height: 120px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.gallery-title {
-    font-size: 1.1rem;
-    color: rgba(255, 255, 255, 0.9);
-    letter-spacing: 2px;
-    margin-bottom: 20px;
-    text-align: center;
+.timeline-image-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
 }
 
-.gallery-empty {
-    text-align: center;
-    color: rgba(255, 255, 255, 0.3);
-    font-size: 0.9rem;
-    padding: 40px 0;
+.timeline-image-wrapper:hover img {
+    transform: scale(1.1);
 }
 
 .gallery-masonry {
     display: flex;
-    gap: 15px;
-    align-items: flex-start;
+    gap: 12px;
 }
 
 .gallery-column {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
 }
 
 .gallery-item {
