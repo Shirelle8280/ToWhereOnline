@@ -5,7 +5,8 @@
  * 并通过 raw.githubusercontent.com 提供公开访问。
  */
 
-const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+import { getToken } from './githubApi';
+
 const GITHUB_OWNER = import.meta.env.VITE_GITHUB_OWNER;
 const GITHUB_REPO = import.meta.env.VITE_GITHUB_REPO;
 const GITHUB_BRANCH = import.meta.env.VITE_GITHUB_BRANCH || 'main';
@@ -47,8 +48,9 @@ function generateFileName(originalName) {
  * @returns {Promise<{publicUrl: string, path: string}>}
  */
 export async function uploadImage(file, subDir = '') {
-    if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO) {
-        throw new Error('GitHub 存储未配置。请在 .env 中设置 VITE_GITHUB_TOKEN、VITE_GITHUB_OWNER 和 VITE_GITHUB_REPO。');
+    const token = getToken();
+    if (!token || !GITHUB_OWNER || !GITHUB_REPO) {
+        throw new Error('GitHub 存储未配置。请确认已通过邀请码验证。');
     }
 
     const fileName = generateFileName(file.name || 'photo.jpg');
@@ -63,7 +65,7 @@ export async function uploadImage(file, subDir = '') {
         {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/vnd.github.v3+json',
             },

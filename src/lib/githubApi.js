@@ -11,9 +11,9 @@ const TOKEN_KEY = 'towhere_github_token';
 // Fallback to .env token if localStorage is empty
 export function getToken() {
     try {
-        return localStorage.getItem(TOKEN_KEY) || import.meta.env.VITE_GITHUB_TOKEN || '';
+        return localStorage.getItem(TOKEN_KEY) || '';
     } catch {
-        return import.meta.env.VITE_GITHUB_TOKEN || '';
+        return '';
     }
 }
 
@@ -54,8 +54,9 @@ export async function uploadFileToGitHub(path, base64Content, commitMessage = 'A
     try {
         // Check if file already exists (to get its SHA for update)
         let sha = null;
+        const encodedPath = path.split('/').map(encodeURIComponent).join('/');
         const checkRes = await fetch(
-            `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?ref=${BRANCH}`,
+            `https://api.github.com/repos/${OWNER}/${REPO}/contents/${encodedPath}?ref=${BRANCH}`,
             { headers: { Authorization: `token ${token}` } }
         );
         if (checkRes.ok) {
@@ -71,7 +72,7 @@ export async function uploadFileToGitHub(path, base64Content, commitMessage = 'A
         if (sha) body.sha = sha;
 
         const res = await fetch(
-            `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`,
+            `https://api.github.com/repos/${OWNER}/${REPO}/contents/${encodedPath}`,
             {
                 method: 'PUT',
                 headers: {
@@ -102,8 +103,9 @@ export async function uploadFileToGitHub(path, base64Content, commitMessage = 'A
  * @returns {string} CDN URL
  */
 export function getJsDelivrUrl(path) {
-    // jsDelivr serves files from GitHub: https://cdn.jsdelivr.net/gh/user/repo@branch/path
-    return `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/${path}`;
+    // Encode each part of the path separately to handle Chinese characters etc.
+    const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+    return `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/${encodedPath}`;
 }
 
 /**

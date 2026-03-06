@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabaseClient';
 import { uploadToSupabase } from '../../lib/supabaseStorage';
@@ -149,17 +149,130 @@ export default function FirstsTimeline() {
         return imgs;
     }, [records]);
 
-    const galleryColumns = useMemo(() => {
-        const cols = [[], []]; // 2 columns for the sidebar gallery
-        allImages.forEach((img, i) => {
-            cols[i % 2].push(img);
-        });
-        return cols;
-    }, [allImages]);
-
     const sortedDates = Object.keys(groupedRecords).sort();
 
     const [useCamera, setUseCamera] = useState(false);
+    const galleryScrollRef = useRef(null);
+    const anchorsRef = useRef([]);
+
+    // Smooth scrolling animation refs
+    const targetScrollY = useRef(0);
+    const currentScrollY = useRef(0);
+    const rafId = useRef(null);
+
+    const smoothScroll = useCallback(() => {
+        if (!galleryScrollRef.current) return;
+
+        const diff = targetScrollY.current - currentScrollY.current;
+        // If we are close enough, snap and stop animation
+        if (Math.abs(diff) < 0.5) {
+            currentScrollY.current = targetScrollY.current;
+            galleryScrollRef.current.scrollTop = currentScrollY.current;
+            rafId.current = null;
+            return;
+        }
+
+        // Lerp step: 5% of the distance per frame gives a smooth, delayed damping feel
+        currentScrollY.current += diff * 0.05;
+        galleryScrollRef.current.scrollTop = currentScrollY.current;
+        rafId.current = requestAnimationFrame(smoothScroll);
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (rafId.current) cancelAnimationFrame(rafId.current);
+        };
+    }, []);
+
+    // We recalculate the offsets for sync scrolling whenever UI shifts
+    const computeAnchors = useCallback(() => {
+        if (!scrollRef.current || !galleryScrollRef.current) return;
+
+        const timelineEvents = Array.from(scrollRef.current.querySelectorAll('.timeline-event'));
+        const galleryItems = Array.from(galleryScrollRef.current.querySelectorAll('.gallery-item'));
+
+        const getRelativeTop = (element, container) => {
+            return element.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+        };
+
+        const galleryMap = {};
+        galleryItems.forEach(item => {
+            const recId = item.getAttribute('data-gallery-record-id');
+            if (recId && !galleryMap[recId]) {
+                galleryMap[recId] = getRelativeTop(item, galleryScrollRef.current);
+            }
+        });
+
+        const newAnchors = [];
+        let rawTops = [];
+
+        timelineEvents.forEach(ev => {
+            const recId = ev.getAttribute('data-record-id');
+            if (!recId) return;
+
+            const tTop = getRelativeTop(ev, scrollRef.current);
+            let gTop = galleryMap[recId];
+            rawTops.push({ tTop, gTop, recId });
+        });
+
+        // 1. Fill undefined gaps with the last known valid top
+        let lastValid = 0;
+        for (let i = 0; i < rawTops.length; i++) {
+            if (rawTops[i].gTop !== undefined) {
+                lastValid = rawTops[i].gTop;
+            } else {
+                rawTops[i].gTop = lastValid;
+            }
+        }
+
+        // 2. Smooth local fluctuations (lookahead 3)
+        // This prevents skipping past the shorter column's image
+        let smoothed = [];
+        for (let i = 0; i < rawTops.length; i++) {
+            let localMin = rawTops[i].gTop;
+            // Look ahead to find if a sibling image is higher up
+            for (let j = 1; j <= 3 && i + j < rawTops.length; j++) {
+                if (rawTops[i + j].gTop < localMin) {
+                    localMin = rawTops[i + j].gTop;
+                }
+            }
+            smoothed.push(localMin);
+        }
+
+        // 3. Enforce strictly non-decreasing
+        let maxSoFar = 0;
+        for (let i = 0; i < rawTops.length; i++) {
+            let finalGTop = smoothed[i];
+            if (finalGTop < maxSoFar) {
+                finalGTop = maxSoFar;
+            } else {
+                maxSoFar = finalGTop;
+            }
+            newAnchors.push({ tTop: rawTops[i].tTop, gTop: finalGTop });
+        }
+
+        // 4. Add a final boundary anchor so the timeline scroll continues to drive the gallery completely to the bottom.
+        if (newAnchors.length > 0) {
+            const lastTTop = newAnchors[newAnchors.length - 1].tTop + 1000;
+            // Calculate maximum available scroll for the gallery
+            const maxGalleryScroll = Math.max(0, galleryScrollRef.current.scrollHeight - galleryScrollRef.current.clientHeight);
+            const lastGTop = Math.max(maxSoFar, maxGalleryScroll);
+            newAnchors.push({ tTop: lastTTop, gTop: lastGTop });
+        }
+
+        anchorsRef.current = newAnchors;
+    }, []);
+
+    // Recompute anchors after data changes or resize
+    useEffect(() => {
+        const timer = setTimeout(computeAnchors, 500);
+        return () => clearTimeout(timer);
+    }, [records, computeAnchors]);
+
+    useEffect(() => {
+        window.addEventListener('resize', computeAnchors);
+        return () => window.removeEventListener('resize', computeAnchors);
+    }, [computeAnchors]);
 
     // Open Add/Edit Modal
     const openModal = (record = null) => {
@@ -364,6 +477,44 @@ export default function FirstsTimeline() {
         return sortedDates.filter(d => d.startsWith(filterYear));
     }, [sortedDates, filterYear]);
 
+    const handleTimelineScroll = useCallback((e) => {
+        const anchors = anchorsRef.current;
+        if (anchors.length === 0 || !galleryScrollRef.current) return;
+
+        const tScroll = e.target.scrollTop;
+        const offset = 150; // visual center offset
+
+        let i = 0;
+        while (i < anchors.length - 1 && anchors[i + 1].tTop <= tScroll + offset) {
+            i++;
+        }
+
+        const curr = anchors[i];
+        const next = anchors[i + 1];
+
+        let targetGScroll = curr.gTop;
+        if (next) {
+            const tRange = next.tTop - curr.tTop;
+            const gRange = next.gTop - curr.gTop;
+            if (tRange > 0) {
+                const progress = (tScroll + offset - curr.tTop) / tRange;
+                targetGScroll = curr.gTop + gRange * progress;
+            }
+        }
+
+        // Apply visual mapped scroll to the gallery container with easing
+        targetScrollY.current = Math.max(0, targetGScroll - offset);
+
+        // If galleryScrollRef has initialized its scroll data and isn't animating, start the loop
+        if (galleryScrollRef.current && !rafId.current) {
+            // First time alignment or jumping from 0
+            if (currentScrollY.current === 0 && targetScrollY.current > 0) {
+                currentScrollY.current = galleryScrollRef.current.scrollTop;
+            }
+            rafId.current = requestAnimationFrame(smoothScroll);
+        }
+    }, [smoothScroll]);
+
     const handleEnterTimeline = () => {
         setIsLaunching(true);
         setTimeout(() => {
@@ -553,7 +704,7 @@ export default function FirstsTimeline() {
                         </div>
 
                         {/* Center Column: Scrollable Timeline */}
-                        <div className="firsts-scroll" ref={scrollRef}>
+                        <div className="firsts-scroll" ref={scrollRef} onScroll={handleTimelineScroll}>
                             <div className="timeline-wrapper">
                                 {filteredDates.map((date, dateIdx) => (
                                     <motion.div
@@ -570,6 +721,7 @@ export default function FirstsTimeline() {
                                                 key={`${date}-${idx}`}
                                                 id={`record-${record.id || `${date}-${record.description}`}`}
                                                 className="timeline-event"
+                                                data-record-id={record.id}
                                                 onClick={() => openModal(record)}
                                                 initial={{ opacity: 0, y: 15 }}
                                                 animate={{ opacity: 1, y: 0 }}
@@ -584,15 +736,6 @@ export default function FirstsTimeline() {
                                                         <blockquote className="timeline-event-extra">
                                                             {record.extraText}
                                                         </blockquote>
-                                                    )}
-                                                    {record.images && record.images.length > 0 && (
-                                                        <div className="timeline-event-images">
-                                                            {record.images.map((img, i) => (
-                                                                <div key={i} className="timeline-image-wrapper">
-                                                                    <img src={img} alt="memory" loading="lazy" />
-                                                                </div>
-                                                            ))}
-                                                        </div>
                                                     )}
                                                 </div>
                                                 <div
@@ -613,21 +756,38 @@ export default function FirstsTimeline() {
                         </div>
 
                         {/* Right Column: Masonry Image Gallery */}
-                        <div className="firsts-gallery">
+                        <div className="firsts-gallery" ref={galleryScrollRef}>
                             <h3 className="gallery-title">回忆画廊</h3>
                             <div className="gallery-masonry">
                                 {allImages.length === 0 ? (
                                     <div className="gallery-empty">暂无图片</div>
                                 ) : (
-                                    galleryColumns.map((col, colIdx) => (
-                                        <div key={colIdx} className="gallery-column">
-                                            {col.map((imgObj, i) => (
-                                                <div key={i} className="gallery-item" onClick={() => scrollToRecord(imgObj)}>
-                                                    <img src={imgObj.url} alt="memory" loading="lazy" />
+                                    <>
+                                        <div className="gallery-column">
+                                            {allImages.filter((_, i) => i % 2 === 0).map((imgObj, i) => (
+                                                <div
+                                                    key={`left-${i}`}
+                                                    className="gallery-item"
+                                                    data-gallery-record-id={imgObj.recordId}
+                                                    onClick={() => scrollToRecord(imgObj)}
+                                                >
+                                                    <img src={imgObj.url} alt="memory" loading="lazy" onLoad={computeAnchors} />
                                                 </div>
                                             ))}
                                         </div>
-                                    ))
+                                        <div className="gallery-column">
+                                            {allImages.filter((_, i) => i % 2 === 1).map((imgObj, i) => (
+                                                <div
+                                                    key={`right-${i}`}
+                                                    className="gallery-item"
+                                                    data-gallery-record-id={imgObj.recordId}
+                                                    onClick={() => scrollToRecord(imgObj)}
+                                                >
+                                                    <img src={imgObj.url} alt="memory" loading="lazy" onLoad={computeAnchors} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         </div>

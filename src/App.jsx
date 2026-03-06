@@ -15,6 +15,7 @@ import HeroSection from './components/HeroSection';
 import LettersModule from './components/letters/LettersModule';
 import LettersIcon from './components/letters/LettersIcon';
 import MusicPlayer from './components/MusicPlayer';
+import InviteGate from './components/InviteGate';
 export default function App() {
   const [page, setPage] = useState('home');
   const [selectedCity, setSelectedCity] = useState(null);
@@ -66,65 +67,67 @@ export default function App() {
   }, [handleSetTab]);
 
   return (
-    <EnergyProvider>
-      <div style={{ width: '100%', height: '100%', margin: 0, padding: 0 }}>
-        {/* Render home view if page is home OR city, to keep globe mounted */}
-        {(page === 'home' || page === 'city') && (
-          <div style={{ display: page === 'city' ? 'none' : 'block', width: '100%', height: '100%' }}>
-            <Navbar
-              activeTab={activeTab}
-              setTab={handleSetTab}
-              isDarkMode={['letters'].includes(activeTab)}
-            />
-            <LettersIcon
-              onClick={() => handleSetTab('letters')}
-              active={activeTab === 'letters'}
-              isDarkMode={['letters'].includes(activeTab)}
-            />
-            <div className="page-content">
-              {activeTab === 'keywords' && (
-                <div style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: '100vh',
-                  overflow: 'hidden',
-                  backgroundImage: 'url(/images/Background.jpg)',
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat'
-                }}>
-                  {/* KeywordsParticle handles its own layering: Canvas at lowest, UI at highest */}
-                  <KeywordsParticle />
+    <InviteGate>
+      <EnergyProvider>
+        <div style={{ width: '100%', height: '100%', margin: 0, padding: 0 }}>
+          {/* Render home view if page is home OR city, to keep globe mounted */}
+          {(page === 'home' || page === 'city') && (
+            <div style={{ display: page === 'city' ? 'none' : 'block', width: '100%', height: '100%' }}>
+              <Navbar
+                activeTab={activeTab}
+                setTab={handleSetTab}
+                isDarkMode={['letters'].includes(activeTab)}
+              />
+              <LettersIcon
+                onClick={() => handleSetTab('letters')}
+                active={activeTab === 'letters'}
+                isDarkMode={['letters'].includes(activeTab)}
+              />
+              <div className="page-content">
+                {activeTab === 'keywords' && (
+                  <div style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '100vh',
+                    overflow: 'hidden',
+                    backgroundImage: 'url(/images/Background.jpg)',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat'
+                  }}>
+                    {/* KeywordsParticle handles its own layering: Canvas at lowest, UI at highest */}
+                    <KeywordsParticle />
 
-                  {/* Middle layer: Interactive planets */}
-                  <div style={{ position: 'absolute', inset: 0, zIndex: 10 }}>
-                    <HeroSection goTo={goTo} />
+                    {/* Middle layer: Interactive planets */}
+                    <div style={{ position: 'absolute', inset: 0, zIndex: 10 }}>
+                      <HeroSection goTo={goTo} />
+                    </div>
                   </div>
-                </div>
+                )}
+                {activeTab === 'towhere' && <PinkAnimationHome goTo={goTo} goToCity={goToCity} isCityMode={page === 'city'} />}
+                {activeTab === 'breaking' && <FirstsTimeline />}
+                {activeTab === 'letters' && <LettersModule />}
+              </div>
+              {activeTab === 'keywords' && (
+                <StarshipWidget />
               )}
-              {activeTab === 'towhere' && <PinkAnimationHome goTo={goTo} goToCity={goToCity} isCityMode={page === 'city'} />}
-              {activeTab === 'breaking' && <FirstsTimeline />}
-              {activeTab === 'letters' && <LettersModule />}
             </div>
-            {activeTab === 'keywords' && (
-              <StarshipWidget />
-            )}
-          </div>
-        )}
+          )}
 
-        {page === 'story' && <Story goTo={goTo} />}
-        {page === 'end' && <End goTo={goTo} />}
+          {page === 'story' && <Story goTo={goTo} />}
+          {page === 'end' && <End goTo={goTo} />}
 
-        {/* CityDetail renders on top, Globe continues to exist hidden */}
-        {page === 'city' && selectedCity && (
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999, background: 'linear-gradient(135deg, #0a0f1a 0%, #0d1525 40%, #111d35 100%)' }}>
-            <CityDetail cityName={selectedCity} goBack={goBackToGlobe} />
-          </div>
-        )}
+          {/* CityDetail renders on top, Globe continues to exist hidden */}
+          {page === 'city' && selectedCity && (
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999, background: 'linear-gradient(135deg, #0a0f1a 0%, #0d1525 40%, #111d35 100%)' }}>
+              <CityDetail cityName={selectedCity} goBack={goBackToGlobe} />
+            </div>
+          )}
 
-        {page === 'annual' && <EnergyStation goTo={goTo} />}
-        <MusicPlayer />
-      </div>
-    </EnergyProvider>
+          {page === 'annual' && <EnergyStation goTo={goTo} />}
+          <MusicPlayer />
+        </div>
+      </EnergyProvider>
+    </InviteGate>
   );
 }
