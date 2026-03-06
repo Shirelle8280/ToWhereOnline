@@ -410,7 +410,7 @@ export default function PinkAnimationHome({ goTo, goToCity, isCityMode = false }
                                 alignItems: 'center',
                                 justifyContent: 'center'
                             }}>
-                                <video src="/video/all.mp4" autoPlay loop muted controls playsInline
+                                <video src={`${import.meta.env.BASE_URL}video/all.mp4`} autoPlay loop muted controls playsInline
                                     style={{ width: '100%', height: '100%', display: 'block', outline: 'none', objectFit: 'cover' }} />
                             </div>
                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingLeft: '10px' }}>

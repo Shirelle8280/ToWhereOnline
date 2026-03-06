@@ -48,13 +48,13 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
 
   // 月球异地照片
   const moonPhotos = [
-    '/images/cities/月球/Screenshot_20250716_230917_com.tencent.mm.jpg',
-    '/images/cities/月球/Screenshot_20250716_230920_com.tencent.mm.jpg',
-    '/images/cities/月球/Screenshot_20250717_235058_com.tencent.mm.jpg',
-    '/images/cities/月球/Screenshot_20250717_235102_com.tencent.mm.jpg',
-    '/images/cities/月球/Screenshot_20250717_235423_com.tencent.mm.jpg',
-    '/images/cities/月球/WechatIMG739.jpg',
-    '/images/cities/月球/WechatIMG740.jpg',
+    `${import.meta.env.BASE_URL}images/cities/月球/Screenshot_20250716_230917_com.tencent.mm.jpg`,
+    `${import.meta.env.BASE_URL}images/cities/月球/Screenshot_20250716_230920_com.tencent.mm.jpg`,
+    `${import.meta.env.BASE_URL}images/cities/月球/Screenshot_20250717_235058_com.tencent.mm.jpg`,
+    `${import.meta.env.BASE_URL}images/cities/月球/Screenshot_20250717_235102_com.tencent.mm.jpg`,
+    `${import.meta.env.BASE_URL}images/cities/月球/Screenshot_20250717_235423_com.tencent.mm.jpg`,
+    `${import.meta.env.BASE_URL}images/cities/月球/WechatIMG739.jpg`,
+    `${import.meta.env.BASE_URL}images/cities/月球/WechatIMG740.jpg`,
   ];
 
   // 切换地图风格函数（使用瓦片地图服务）
@@ -93,7 +93,7 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
 
     try {
       // 设置 Cesium 静态资源路径
-      window.CESIUM_BASE_URL = '/cesium/';
+      window.CESIUM_BASE_URL = import.meta.env.BASE_URL + 'cesium/';
 
       // 设置 Cesium Token (可选，如果你有的话)
       // Cesium.Ion.defaultAccessToken = 'your-token-here';
@@ -224,7 +224,7 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
         ellipsoid: {
           radii: new Cesium.Cartesian3(500000, 500000, 500000), // 放大月球半径，更容易看到
           material: new Cesium.ImageMaterialProperty({
-            image: '/cesium/Assets/Textures/moonSmall.jpg',
+            image: import.meta.env.BASE_URL + 'cesium/Assets/Textures/moonSmall.jpg',
             color: Cesium.Color.WHITE,
             transparent: false
           }),

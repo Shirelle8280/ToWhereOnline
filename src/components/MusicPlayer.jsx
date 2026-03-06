@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import './MusicPlayer.css';
 
 const TRACKS = [
-    '/music/RADWIMPS - デート.mp3',
-    '/music/C418 - Alpha.mp3',
-    '/music/Martin Ermen - River Flows In You.mp3',
-    '/music/Roger Subirana - Between Worlds.mp3'
+    `${import.meta.env.BASE_URL}music/RADWIMPS - デート.mp3`,
+    `${import.meta.env.BASE_URL}music/C418 - Alpha.mp3`,
+    `${import.meta.env.BASE_URL}music/Martin Ermen - River Flows In You.mp3`,
+    `${import.meta.env.BASE_URL}music/Roger Subirana - Between Worlds.mp3`
 ];
 
 // Final parameters provided by the user
