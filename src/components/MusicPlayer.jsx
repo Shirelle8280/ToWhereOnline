@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import './MusicPlayer.css';
 
 const TRACKS = [
-    `${import.meta.env.BASE_URL}music/RADWIMPS - デート.mp3`,
-    `${import.meta.env.BASE_URL}music/C418 - Alpha.mp3`,
-    `${import.meta.env.BASE_URL}music/Martin Ermen - River Flows In You.mp3`,
-    `${import.meta.env.BASE_URL}music/Roger Subirana - Between Worlds.mp3`
+    `${import.meta.env.BASE_URL}music/date.mp3`,
+    `${import.meta.env.BASE_URL}music/alpha.mp3`,
+    `${import.meta.env.BASE_URL}music/river.mp3`,
+    `${import.meta.env.BASE_URL}music/between_worlds.mp3`
 ];
 
 // Final parameters provided by the user
@@ -225,7 +225,7 @@ const MusicPlayer = () => {
             onDoubleClick={nextTrack}
             title={isPlaying ? "Click to Pause / Double-Click for Next Track" : "Click to Play"}
         >
-            <audio ref={audioRef} src={TRACKS[trackIndex]} crossOrigin="anonymous" />
+            <audio ref={audioRef} src={TRACKS[trackIndex]} />
             <canvas ref={canvasRef}></canvas>
         </div>
     );
