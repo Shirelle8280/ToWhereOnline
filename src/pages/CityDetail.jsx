@@ -190,27 +190,33 @@ export default function CityDetail({ cityName, goBack }) {
         <div className="gallery-container">
           <h2 className="gallery-title">精彩瞬间</h2>
           <div className="gallery-grid">
-            {currentCity.gallery.map((image, index) => {
-              // 如果画廊里的第一张图和主图一样，可以选择性跳过或者保留。
-              // 这里我们保留，但确保显示正常。
-              return (
-                <motion.div
-                  key={index}
-                  className="gallery-item"
-                  initial={{ opacity: 0, y: 50 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                  onClick={() => openImageViewer(image, index)}
-                >
-                  <img
-                    src={image}
-                    alt={`${cityName} 精彩记录 ${index + 1}`}
-                    onError={handleImageError}
-                  />
-                </motion.div>
-              );
-            })}
+            {currentCity.gallery.length > 0 ? (
+              currentCity.gallery.map((image, index) => {
+                // 如果画廊里的第一张图和主图一样，可以选择性跳过或者保留。
+                // 这里我们保留，但确保显示正常。
+                return (
+                  <motion.div
+                    key={index}
+                    className="gallery-item"
+                    initial={{ opacity: 0, y: 50 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.1 }}
+                    viewport={{ once: true }}
+                    onClick={() => openImageViewer(image, index)}
+                  >
+                    <img
+                      src={image}
+                      alt={`${cityName} 精彩记录 ${index + 1}`}
+                      onError={handleImageError}
+                    />
+                  </motion.div>
+                );
+              })
+            ) : (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '100px 0', color: '#999', fontSize: '1.1rem', letterSpacing: '1px' }}>
+                照片都被藏起来了哦，自己去上传试试吧～
+              </div>
+            )}
           </div>
         </div>
       </div>

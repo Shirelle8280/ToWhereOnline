@@ -250,16 +250,16 @@ export default function PinkAnimationHome({ goTo, goToCity, isCityMode = false }
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 1.5, delay: 1 }}
+                transition={{ duration: 1.0 }} // Reduced duration and removed delay for better response
                 style={{
                     position: 'absolute',
-                    bottom: '32px',
+                    bottom: window.innerWidth < 768 ? '80px' : '32px', // Stay above the music ball/safe area on mobile
                     left: '50%',
                     transform: 'translateX(-50%)',
                     display: 'flex',
                     gap: '18px',
                     alignItems: 'center',
-                    zIndex: 15,
+                    zIndex: 1000, // Higher z-index to stay above other elements
                 }}
             >
                 {[0, 1, 2].map((i) => (

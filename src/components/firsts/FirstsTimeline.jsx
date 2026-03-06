@@ -766,7 +766,7 @@ export default function FirstsTimeline() {
                             <h3 className="gallery-title">回忆画廊</h3>
                             <div className="gallery-masonry">
                                 {allImages.length === 0 ? (
-                                    <div className="gallery-empty">暂无图片</div>
+                                    <div className="gallery-empty">照片都被藏起来了哦，自己去上传试试吧～</div>
                                 ) : (
                                     <>
                                         <div className="gallery-column">

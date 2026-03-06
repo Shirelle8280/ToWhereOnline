@@ -47,15 +47,7 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
   const [currentMoonPhoto, setCurrentMoonPhoto] = useState(0);
 
   // 月球异地照片
-  const moonPhotos = [
-    `${import.meta.env.BASE_URL}images/cities/月球/Screenshot_20250716_230917_com.tencent.mm.jpg`,
-    `${import.meta.env.BASE_URL}images/cities/月球/Screenshot_20250716_230920_com.tencent.mm.jpg`,
-    `${import.meta.env.BASE_URL}images/cities/月球/Screenshot_20250717_235058_com.tencent.mm.jpg`,
-    `${import.meta.env.BASE_URL}images/cities/月球/Screenshot_20250717_235102_com.tencent.mm.jpg`,
-    `${import.meta.env.BASE_URL}images/cities/月球/Screenshot_20250717_235423_com.tencent.mm.jpg`,
-    `${import.meta.env.BASE_URL}images/cities/月球/WechatIMG739.jpg`,
-    `${import.meta.env.BASE_URL}images/cities/月球/WechatIMG740.jpg`,
-  ];
+  const moonPhotos = [];
 
   // 切换地图风格函数（使用瓦片地图服务）
   const switchMapStyle = (styleKey) => {
@@ -1533,120 +1525,125 @@ export default function CesiumGlobe({ goTo, goToCity, transitionMode = false, sc
             paddingBottom: '50px',
             zIndex: 5
           }}>
+            {moonPhotos.length > 0 ? (
+              <>
+                {moonPhotos.map((photo, index) => {
+                  const isCurrent = index === currentMoonPhoto;
+                  const isPrev = index === (currentMoonPhoto - 1 + moonPhotos.length) % moonPhotos.length;
+                  const isNext = index === (currentMoonPhoto + 1) % moonPhotos.length;
 
+                  let zIndex = 1;
+                  let opacity = 0.3;
+                  let scale = 0.8;
+                  let translateX = 0;
+                  let translateY = 0;
 
+                  if (isCurrent) {
+                    zIndex = 5;
+                    opacity = 1;
+                    scale = 1;
+                    translateX = 0;
+                    translateY = 0;
+                  } else if (isPrev) {
+                    zIndex = 3;
+                    opacity = 0.6;
+                    scale = 0.85;
+                    translateX = -100;
+                    translateY = 20;
+                  } else if (isNext) {
+                    zIndex = 3;
+                    opacity = 0.6;
+                    scale = 0.85;
+                    translateX = 100;
+                    translateY = 20;
+                  } else {
+                    zIndex = 2;
+                    opacity = 0.3;
+                    scale = 0.7;
+                    translateX = (index < currentMoonPhoto) ? -200 : 200;
+                    translateY = 40;
+                  }
 
+                  return (
+                    <motion.img
+                      key={index}
+                      initial={false}
+                      animate={{
+                        opacity,
+                        scale,
+                        x: translateX,
+                        y: translateY,
+                        zIndex,
+                      }}
+                      transition={{
+                        duration: 0.5,
+                        ease: 'easeOut',
+                      }}
+                      src={photo}
+                      alt={`异地时光 ${index + 1}`}
+                      onClick={() => setCurrentMoonPhoto(index)}
+                      style={{
+                        position: 'absolute',
+                        maxWidth: '80vw',
+                        maxHeight: '70vh',
+                        objectFit: 'contain',
+                        borderRadius: '20px',
+                        boxShadow: isCurrent
+                          ? '0 20px 40px rgba(0,0,0,0.8)'
+                          : '0 10px 20px rgba(0,0,0,0.5)',
+                        border: isCurrent
+                          ? '3px solid rgba(255, 255, 255, 0.5)'
+                          : '2px solid rgba(255, 255, 255, 0.2)',
+                        cursor: isCurrent ? 'default' : 'pointer',
+                        userSelect: 'none',
+                        touchAction: 'manipulation',
+                      }}
+                    />
+                  );
+                })}
 
-
-            {moonPhotos.map((photo, index) => {
-              const isCurrent = index === currentMoonPhoto;
-              const isPrev = index === (currentMoonPhoto - 1 + moonPhotos.length) % moonPhotos.length;
-              const isNext = index === (currentMoonPhoto + 1) % moonPhotos.length;
-
-              let zIndex = 1;
-              let opacity = 0.3;
-              let scale = 0.8;
-              let translateX = 0;
-              let translateY = 0;
-
-              if (isCurrent) {
-                zIndex = 5;
-                opacity = 1;
-                scale = 1;
-                translateX = 0;
-                translateY = 0;
-              } else if (isPrev) {
-                zIndex = 3;
-                opacity = 0.6;
-                scale = 0.85;
-                translateX = -100;
-                translateY = 20;
-              } else if (isNext) {
-                zIndex = 3;
-                opacity = 0.6;
-                scale = 0.85;
-                translateX = 100;
-                translateY = 20;
-              } else {
-                zIndex = 2;
-                opacity = 0.3;
-                scale = 0.7;
-                translateX = (index < currentMoonPhoto) ? -200 : 200;
-                translateY = 40;
-              }
-
-              return (
-                <motion.img
-                  key={index}
-                  initial={false}
-                  animate={{
-                    opacity,
-                    scale,
-                    x: translateX,
-                    y: translateY,
-                    zIndex,
-                  }}
-                  transition={{
-                    duration: 0.5,
-                    ease: 'easeOut',
-                  }}
-                  src={photo}
-                  alt={`异地时光 ${index + 1}`}
-                  onClick={() => setCurrentMoonPhoto(index)}
-                  style={{
-                    position: 'absolute',
-                    maxWidth: '80vw',
-                    maxHeight: '70vh',
-                    objectFit: 'contain',
-                    borderRadius: '20px',
-                    boxShadow: isCurrent
-                      ? '0 20px 40px rgba(0,0,0,0.8)'
-                      : '0 10px 20px rgba(0,0,0,0.5)',
-                    border: isCurrent
-                      ? '3px solid rgba(255, 255, 255, 0.5)'
-                      : '2px solid rgba(255, 255, 255, 0.2)',
-                    cursor: isCurrent ? 'default' : 'pointer',
-                    userSelect: 'none',
-                    touchAction: 'manipulation',
-                  }}
-                />
-              );
-            })}
-
-            {/* 照片指示器 */}
-            <div style={{
-              position: 'absolute',
-              bottom: '30px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              display: 'flex',
-              gap: '8px',
-              zIndex: 10
-            }}>
-              {moonPhotos.map((_, index) => (
-                <motion.div
-                  key={index}
-                  onClick={() => setCurrentMoonPhoto(index)}
-                  whileHover={{ scale: 1.2 }}
-                  whileTap={{ scale: 0.9 }}
-                  style={{
-                    width: index === currentMoonPhoto ? '12px' : '8px',
-                    height: index === currentMoonPhoto ? '12px' : '8px',
-                    borderRadius: '50%',
-                    backgroundColor: index === currentMoonPhoto
-                      ? 'rgba(255, 255, 255, 0.9)'
-                      : 'rgba(255, 255, 255, 0.4)',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    border: index === currentMoonPhoto
-                      ? '2px solid rgba(255, 215, 0, 0.8)'
-                      : '1px solid rgba(255, 255, 255, 0.2)'
-                  }}
-                />
-              ))}
-            </div>
-
-
+                {/* 照片指示器 */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '30px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  display: 'flex',
+                  gap: '8px',
+                  zIndex: 10
+                }}>
+                  {moonPhotos.map((_, index) => (
+                    <motion.div
+                      key={index}
+                      onClick={() => setCurrentMoonPhoto(index)}
+                      whileHover={{ scale: 1.2 }}
+                      whileTap={{ scale: 0.9 }}
+                      style={{
+                        width: index === currentMoonPhoto ? '12px' : '8px',
+                        height: index === currentMoonPhoto ? '12px' : '8px',
+                        borderRadius: '50%',
+                        backgroundColor: index === currentMoonPhoto
+                          ? 'rgba(255, 255, 255, 0.9)'
+                          : 'rgba(255, 255, 255, 0.4)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        border: index === currentMoonPhoto
+                          ? '2px solid rgba(255, 215, 0, 0.8)'
+                          : '1px solid rgba(255, 255, 255, 0.2)'
+                      }}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{
+                color: 'rgba(255, 255, 255, 0.3)',
+                fontSize: '14px',
+                letterSpacing: '2px'
+              }}>
+                照片都被藏起来了哦，自己去上传试试吧～
+              </div>
+            )}
           </div>
         </motion.div>
       )}
