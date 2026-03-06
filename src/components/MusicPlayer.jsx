@@ -95,17 +95,6 @@ const MusicPlayer = () => {
         }
     }, [trackIndex]);
 
-    // Handle PLAY/PAUSE
-    useEffect(() => {
-        if (audioRef.current) {
-            if (isPlaying) {
-                audioRef.current.play().catch(e => console.log('Audio resume failed', e));
-            } else {
-                audioRef.current.pause();
-            }
-        }
-    }, [isPlaying]);
-
     // Animation Loop
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -186,9 +175,11 @@ const MusicPlayer = () => {
             analyserRef.current.smoothingTimeConstant = 0.85;
             analyserRef.current.fftSize = 64;
 
-            sourceRef.current = audioCtxRef.current.createMediaElementSource(audioRef.current);
-            sourceRef.current.connect(analyserRef.current);
-            analyserRef.current.connect(audioCtxRef.current.destination);
+            if (audioRef.current) {
+                sourceRef.current = audioCtxRef.current.createMediaElementSource(audioRef.current);
+                sourceRef.current.connect(analyserRef.current);
+                analyserRef.current.connect(audioCtxRef.current.destination);
+            }
         }
         if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
             audioCtxRef.current.resume();
@@ -197,14 +188,32 @@ const MusicPlayer = () => {
 
     const togglePlay = () => {
         if (!audioRef.current) return;
+
         initializeAudioCtx();
-        setIsPlaying(!isPlaying);
+
+        if (isPlaying) {
+            audioRef.current.pause();
+            setIsPlaying(false);
+        } else {
+            // Start playing
+            const playPromise = audioRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => {
+                    console.error('Audio play failed:', e);
+                    // If play fails, reset state to allow another attempt
+                    setIsPlaying(false);
+                });
+            }
+            setIsPlaying(true);
+        }
     };
 
     const nextTrack = (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!audioRef.current) return;
+
         initializeAudioCtx();
+
         setTrackIndex((prev) => (prev + 1) % TRACKS.length);
         setIsPlaying(true);
     };

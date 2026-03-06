@@ -1,15 +1,17 @@
 import React from 'react';
 import '../style.css'; // Ensure we can style it
 
-const Navbar = ({ activeTab, setTab, isDarkMode }) => {
-    const tabs = [
+const Navbar = ({ activeTab, setTab, isMobile }) => {
+    const allTabs = [
         { id: 'keywords', label: '新年关键词' },
         { id: 'towhere', label: '一路向哪' },
         { id: 'breaking', label: '初时' },
     ];
 
+    const tabs = isMobile ? allTabs.filter(t => ['towhere', 'breaking'].includes(t.id)) : allTabs;
+
     return (
-        <nav className={`fixed-navbar ${isDarkMode ? 'dark-mode' : ''}`}>
+        <nav className="fixed-navbar">
             <div className="navbar-container">
                 {tabs.map((tab) => (
                     <button

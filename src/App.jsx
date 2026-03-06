@@ -16,10 +16,20 @@ import LettersModule from './components/letters/LettersModule';
 import LettersIcon from './components/letters/LettersIcon';
 import MusicPlayer from './components/MusicPlayer';
 import InviteGate from './components/InviteGate';
+
 export default function App() {
   const [page, setPage] = useState('home');
   const [selectedCity, setSelectedCity] = useState(null);
   const [activeTab, setActiveTab] = useState('keywords');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Sync tab state with URL hash for reload persistence
   useEffect(() => {
@@ -76,6 +86,7 @@ export default function App() {
               <Navbar
                 activeTab={activeTab}
                 setTab={handleSetTab}
+                isMobile={isMobile}
                 isDarkMode={['letters'].includes(activeTab)}
               />
               <LettersIcon

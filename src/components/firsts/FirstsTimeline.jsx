@@ -75,11 +75,14 @@ export default function FirstsTimeline() {
     const [records, setRecords] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [newDate, setNewDate] = useState('');
-    const [newText, setNewText] = useState('');
+    const [newTitle, setNewTitle] = useState('');
+    const [newExtraText, setNewExtraText] = useState('');
     const [newImages, setNewImages] = useState([]);
     const [editingId, setEditingId] = useState(null); // tracking db id if editing
     const [saving, setSaving] = useState(false);
+    const [showImageMenu, setShowImageMenu] = useState(false);
     const scrollRef = useRef(null);
+    const extraTextRef = useRef(null);
 
     // Load records: merge seed data + Supabase data
     useEffect(() => {
@@ -278,31 +281,30 @@ export default function FirstsTimeline() {
     const openModal = (record = null) => {
         if (record) {
             setNewDate(record.date);
-            setNewText(record.description + (record.extraText ? `\n${record.extraText}` : ''));
+            setNewTitle(record.description || '');
+            setNewExtraText(record.extraText || '');
             setNewImages(record.images || []);
             setEditingId(record.id);
         } else {
             const today = new Date().toISOString().split('T')[0];
             setNewDate(today);
-            setNewText('');
+            setNewTitle('');
+            setNewExtraText('');
             setNewImages([]);
             setEditingId(null);
         }
         setShowModal(true);
+        setShowImageMenu(false);
     };
 
     // Save record (Add or Edit)
     const handleSave = async () => {
-        if (!newDate || !newText.trim()) return;
+        if (!newDate || !newTitle.trim()) return;
         setSaving(true);
 
-        const lines = newText.trim().split('\n');
-        const title = lines[0];
-        const extra = lines.slice(1).join('\n');
-
         const recordPayload = {
-            text: title,
-            extra_text: extra,
+            text: newTitle.trim(),
+            extra_text: newExtraText.trim(),
             images: newImages,
         };
 
@@ -340,7 +342,8 @@ export default function FirstsTimeline() {
         await loadRecords();
 
         setNewDate('');
-        setNewText('');
+        setNewTitle('');
+        setNewExtraText('');
         setNewImages([]);
         setEditingId(null);
         setSaving(false);
@@ -386,6 +389,7 @@ export default function FirstsTimeline() {
     const handleFileUpload = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
+        setShowImageMenu(false);
         setSaving(true);
         try {
             const { publicUrl } = await uploadToSupabase(file, 'firsts-images');
@@ -569,7 +573,9 @@ export default function FirstsTimeline() {
                                         textShadow: '0 0 10px rgba(246, 190, 200, 0.4)'
                                     }}
                                 >
-                                    {word.text}
+                                    <div style={{ transform: 'translateX(-50%)' }}>
+                                        {word.text}
+                                    </div>
                                 </motion.div>
                             ))}
                         </AnimatePresence>
@@ -795,18 +801,20 @@ export default function FirstsTimeline() {
                 </>
             )}
 
-            {/* Floating Add Button */}
-            <motion.button
-                className="firsts-add-btn"
-                onClick={() => openModal(null)}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1, type: 'spring', stiffness: 200 }}
-            >
-                +
-            </motion.button>
+            {/* Floating Add Button - Only show after entering timeline/gallery */}
+            {hasEntered && (
+                <motion.button
+                    className="firsts-add-btn"
+                    onClick={() => openModal(null)}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1, type: 'spring', stiffness: 200 }}
+                >
+                    +
+                </motion.button>
+            )}
 
             {/* Modal */}
             <AnimatePresence>
@@ -824,9 +832,45 @@ export default function FirstsTimeline() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.85, y: 30 }}
                             transition={{ type: 'spring', damping: 20 }}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowImageMenu(false);
+                            }}
                         >
-                            <h2>{editingId ? '编辑第一次 ✏️' : '记录新的第一次 ✨'}</h2>
+                            <div className="firsts-modal-header">
+                                <h2>{editingId ? '编辑第一次' : '记录新的第一次'} ✨</h2>
+                                <div className="camera-btn-wrapper" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                        type="button"
+                                        className="btn-header-camera"
+                                        onClick={() => setShowImageMenu(!showImageMenu)}
+                                        title="添加图片"
+                                    >
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                            <circle cx="12" cy="13" r="4"></circle>
+                                        </svg>
+                                    </button>
+                                    <AnimatePresence>
+                                        {showImageMenu && (
+                                            <motion.div
+                                                className="camera-dropdown-menu"
+                                                initial={{ opacity: 0, y: -10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                            >
+                                                <button className="dropdown-item" onClick={() => { setUseCamera(true); setShowImageMenu(false); }}>
+                                                    拍照
+                                                </button>
+                                                <label className="dropdown-item" style={{ cursor: 'pointer' }}>
+                                                    从相册选择
+                                                    <input type="file" hidden accept="image/*" onChange={handleFileUpload} />
+                                                </label>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </div>
 
                             {useCamera ? (
                                 <CameraCapture
@@ -839,56 +883,56 @@ export default function FirstsTimeline() {
                                         <label>日期</label>
                                         <input
                                             type="date"
+                                            className="custom-date-picker"
                                             value={newDate}
                                             onChange={(e) => setNewDate(e.target.value)}
-                                            className="custom-date-picker"
                                         />
                                     </div>
 
                                     <div className="firsts-modal-field">
-                                        <label>描述 (Shift+Enter添加补充描述)</label>
-                                        <textarea
-                                            placeholder="标题...&#10;这是补充描述..."
-                                            value={newText}
-                                            onChange={(e) => setNewText(e.target.value)}
-                                            rows={4}
+                                        <label>描述</label>
+                                        <input
+                                            type="text"
+                                            value={newTitle}
+                                            onChange={(e) => setNewTitle(e.target.value)}
+                                            placeholder="输入标题..."
+                                            style={{ marginBottom: '12px' }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    extraTextRef.current?.focus();
+                                                }
+                                            }}
                                         />
+                                        <div className="extra-text-container">
+                                            <div className="extra-text-line"></div>
+                                            <textarea
+                                                ref={extraTextRef}
+                                                value={newExtraText}
+                                                onChange={(e) => setNewExtraText(e.target.value)}
+                                                placeholder="输入补充描述..."
+                                                className="extra-text-textarea"
+                                            />
+                                        </div>
                                     </div>
 
-                                    <div className="firsts-modal-field">
-                                        <label>图片 (可选)</label>
-                                        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                                            <button
-                                                type="button"
-                                                onClick={() => setUseCamera(true)}
-                                                style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: '8px', cursor: 'pointer' }}
-                                            >
-                                                拍照
-                                            </button>
-                                            <label style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', margin: 0 }}>
-                                                上传
-                                                <input type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
-                                            </label>
+                                    {newImages.length > 0 && (
+                                        <div className="firsts-modal-field">
+                                            <label>预览图片 ({newImages.length})</label>
+                                            <div className="image-preview-container">
+                                                {newImages.map((url, i) => (
+                                                    <div key={i} className="preview-box" style={{ marginBottom: '10px' }}>
+                                                        <img src={url} alt="preview" />
+                                                        <div className="remove-img-btn" onClick={() => setNewImages(newImages.filter((_, idx) => idx !== i))}>×</div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                            {newImages.map((src, i) => (
-                                                <img key={i} src={src} alt="Uploaded" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '1px solid rgba(246, 190, 200, 0.5)' }} />
-                                            ))}
-                                        </div>
-                                    </div>
+                                    )}
 
                                     <div className="firsts-modal-actions">
-                                        <button
-                                            className="btn-cancel"
-                                            onClick={() => setShowModal(false)}
-                                        >
-                                            取消
-                                        </button>
-                                        <button
-                                            className="btn-submit"
-                                            onClick={handleSave}
-                                            disabled={!newDate || !newText.trim() || saving}
-                                        >
+                                        <button className="btn-cancel" onClick={() => setShowModal(false)}>取消</button>
+                                        <button className="btn-submit" onClick={handleSave} disabled={saving || !newTitle.trim()}>
                                             {saving ? '保存中...' : '记录'}
                                         </button>
                                     </div>

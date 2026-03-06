@@ -90,7 +90,7 @@ export default function CameraCapture({ onCapture, onCancel }) {
     const isMobile = window.innerWidth <= 600 || /Mobi|Android/i.test(navigator.userAgent);
 
     return (
-        <div className="camera-capture-container">
+        <div className={`camera-capture-container ${isMobile ? 'mobile-fullscreen' : ''}`}>
             {error ? (
                 <div className="camera-error">
                     <p>{error}</p>
@@ -105,34 +105,37 @@ export default function CameraCapture({ onCapture, onCancel }) {
                         muted
                         style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
                     />
-                    <div className="camera-overlay">
-                        <div className="camera-frame"></div>
-                    </div>
+
+                    {/* Capture Frame Overlay */}
+                    {!isMobile && (
+                        <div className="camera-overlay">
+                            <div className="camera-frame"></div>
+                        </div>
+                    )}
+
                     <div className="camera-controls">
-                        <button type="button" className="btn-cancel-camera" onClick={handleCancel}>
+                        <button type="button" className="btn-cancel-camera" onClick={handleCancel} title="取消">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
                                 <line x1="6" y1="6" x2="18" y2="18"></line>
                             </svg>
                         </button>
+
                         <button type="button" className="btn-capture" onClick={capture} title="拍照">
                             <div className="shutter-inner"></div>
                         </button>
-                        {isMobile && (
-                            <button type="button" className="btn-switch-camera" onClick={handleSwitchCamera} title="翻转镜头" style={{
-                                width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(0,0,0,0.5)',
-                                border: '1px solid rgba(255,255,255,0.2)', color: '#fff', display: 'flex',
-                                alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
-                            }}>
+
+                        {isMobile ? (
+                            <button type="button" className="btn-switch-camera" onClick={handleSwitchCamera} title="翻转镜头">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21 2v6h-6"></path>
-                                    <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                                    <path d="M3 22v-6h6"></path>
-                                    <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                                    <path d="M23 4v6h-6"></path>
+                                    <path d="M1 20v-6h6"></path>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                                 </svg>
                             </button>
+                        ) : (
+                            <div style={{ width: '44px' }}></div>
                         )}
-                        {!isMobile && <div style={{ width: '44px' }}></div> /* Placeholder to keep layout centered */}
                     </div>
                 </div>
             )}

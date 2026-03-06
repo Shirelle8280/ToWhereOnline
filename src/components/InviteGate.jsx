@@ -46,18 +46,11 @@ export default function InviteGate({ children }) {
     // 初次加载检查中
     if (checking) return null;
 
-    // 已验证 — 渲染应用 + 退出按钮
+    // 已验证 — 渲染应用
     if (authed) {
         return (
             <>
                 {children}
-                <button
-                    onClick={handleLogout}
-                    style={styles.logoutBtn}
-                    title="退出登录"
-                >
-                    退出
-                </button>
             </>
         );
     }

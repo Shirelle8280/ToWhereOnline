@@ -286,50 +286,52 @@ export default function PinkAnimationHome({ goTo, goToCity, isCityMode = false }
                 ))}
             </motion.div>
 
-            {/* Bottom Right Control Bar */}
-            <div style={{
-                position: 'absolute', bottom: '20px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: 'rgba(255, 255, 255, 0.2)', borderRadius: '20px',
-                padding: '8px 12px', backdropFilter: 'blur(10px)',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.3)', zIndex: 20,
-                ...(showSidebar ? {
-                    left: `calc(100% - ${sidebarWidth / 2}px)`, right: 'auto',
-                    transform: 'translateX(-50%)', width: `${sidebarWidth - 40}px`,
-                } : {
-                    right: '20px', left: 'auto', transform: 'none', width: 'auto',
-                }),
-            }}>
-                <button onClick={() => setShowSidebar(!showSidebar)}
-                    style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', marginRight: '8px' }}>
-                    {showSidebar ? '›' : '‹'}
-                </button>
-                <button
-                    onClick={() => setShowAdmin(true)}
-                    style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        marginRight: '8px',
-                        cursor: 'pointer',
-                        userSelect: 'none',
-                        fontSize: '0.9rem',
-                        transition: 'opacity 0.2s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = 0.7}
-                    onMouseLeave={e => e.currentTarget.style.opacity = 1}
-                >
-                    地点管理
-                </button>
-                <button onClick={() => setShowInfoModal(true)}
-                    style={{
-                        width: '32px', height: '32px', borderRadius: '50%',
-                        background: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.3)',
-                        color: 'white', fontSize: '16px', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
-                    }}>?</button>
-            </div>
+            {/* Bottom Right Control Bar - Hidden on Mobile */}
+            {window.innerWidth >= 768 && (
+                <div style={{
+                    position: 'absolute', bottom: '20px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: 'rgba(255, 255, 255, 0.2)', borderRadius: '20px',
+                    padding: '8px 12px', backdropFilter: 'blur(10px)',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.3)', zIndex: 20,
+                    ...(showSidebar ? {
+                        left: `calc(100% - ${sidebarWidth / 2}px)`, right: 'auto',
+                        transform: 'translateX(-50%)', width: `${sidebarWidth - 40}px`,
+                    } : {
+                        right: '20px', left: 'auto', transform: 'none', width: 'auto',
+                    }),
+                }}>
+                    <button onClick={() => setShowSidebar(!showSidebar)}
+                        style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', marginRight: '8px' }}>
+                        {showSidebar ? '›' : '‹'}
+                    </button>
+                    <button
+                        onClick={() => setShowAdmin(true)}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            marginRight: '8px',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            fontSize: '0.9rem',
+                            transition: 'opacity 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = 0.7}
+                        onMouseLeave={e => e.currentTarget.style.opacity = 1}
+                    >
+                        地点管理
+                    </button>
+                    <button onClick={() => setShowInfoModal(true)}
+                        style={{
+                            width: '32px', height: '32px', borderRadius: '50%',
+                            background: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.3)',
+                            color: 'white', fontSize: '16px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
+                        }}>?</button>
+                </div>
+            )}
 
 
             {/* City Sidebar */}

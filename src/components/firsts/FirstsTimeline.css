@@ -283,15 +283,29 @@
     appearance: none;
 }
 
-.firsts-modal-field input:focus,
-.firsts-modal-field textarea:focus {
-    border-color: rgba(246, 190, 200, 0.5);
+.custom-date-picker {
+    position: relative;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    color: #fff !important;
+    font-family: inherit;
+    width: 100%;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.custom-date-picker:focus {
+    border-color: rgba(246, 190, 200, 0.5) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
     box-shadow: 0 0 15px rgba(246, 190, 200, 0.1);
 }
 
-.firsts-modal-field textarea {
-    resize: vertical;
-    min-height: 80px;
+/* Calendar icon color for Webkit browsers */
+.custom-date-picker::-webkit-calendar-picker-indicator {
+    filter: invert(0.8) sepia(100%) saturate(1000%) hue-rotate(300deg) brightness(100%);
+    cursor: pointer;
 }
 
 .firsts-modal-actions {
@@ -654,7 +668,7 @@
         overflow-y: auto;
     }
 
-    .camera-capture-container {
+    .mobile-fullscreen.camera-capture-container {
         height: 100dvh;
         position: fixed;
         inset: 0;
@@ -663,9 +677,41 @@
         margin-bottom: 0;
     }
 
-    .camera-controls {
-        bottom: 40px;
+    .mobile-fullscreen .camera-view video {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
     }
+
+    .mobile-fullscreen .camera-controls {
+        bottom: 60px;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 20px;
+        border-radius: 40px;
+        backdrop-filter: blur(10px);
+    }
+}
+
+.btn-switch-camera {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-switch-camera:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.camera-btn-wrapper {
+    position: relative;
 }
 
 /* ========== 3-Column Layout Enhancements ========== */
@@ -827,20 +873,37 @@
     border-radius: 2px;
 }
 
+.gallery-title {
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.gallery-empty {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.9rem;
+    padding: 40px 0;
+}
+
 .gallery-masonry {
     display: flex;
-    gap: 12px;
+    gap: 15px;
     align-items: flex-start;
 }
 
 .gallery-column {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 15px;
-    flex: 1;
 }
 
 .gallery-item {
+    break-inside: avoid;
+    margin-bottom: 15px;
     border-radius: 12px;
     overflow: hidden;
     position: relative;
