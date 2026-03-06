@@ -13,7 +13,7 @@ export default function Home({ goTo, goToCity }) {
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(false);
   const videoRef = useRef(null);
-  
+
   // 身份验证相关状态
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -23,7 +23,7 @@ export default function Home({ goTo, goToCity }) {
   const handleLogin = () => {
     setIsAuthenticated(true);
     setShowLoginModal(false);
-    
+
     // 执行之前尝试的操作
     if (attemptedAction) {
       attemptedAction();
@@ -43,9 +43,9 @@ export default function Home({ goTo, goToCity }) {
   useEffect(() => {
     const handleScroll = (e) => {
       if (!containerRef.current) return;
-      
+
       const newScrollY = containerRef.current.scrollTop;
-      
+
       // 如果未认证且尝试滚动超过第一屏的30%，则阻止滚动并显示登录弹窗
       if (!isAuthenticated && newScrollY > window.innerHeight * 0.3) {
         e.preventDefault();
@@ -53,7 +53,7 @@ export default function Home({ goTo, goToCity }) {
           top: window.innerHeight * 0.3,
           behavior: 'smooth'
         });
-        
+
         setAttemptedAction(() => () => {
           containerRef.current.scrollTo({
             top: newScrollY,
@@ -63,9 +63,9 @@ export default function Home({ goTo, goToCity }) {
         setShowLoginModal(true);
         return;
       }
-      
+
       setScrollY(newScrollY);
-      
+
       // 当滚动到第二屏完全显示时，可以考虑跳转到地球页面
       // 暂时注释掉自动跳转，让用户可以体验完整的滚动动画
       /*
@@ -137,21 +137,21 @@ export default function Home({ goTo, goToCity }) {
       '中山': ['WechatIMG17786.jpg', 'WechatIMG17787.jpg'],
       '东莞': ['IMG_9327.JPG', 'IMG_9328.JPG', 'WechatIMG17920.jpg']
     };
-    
+
     const images = [];
-    
+
     // 为每个城市生成图片数据
     Object.entries(cityImages).forEach(([city, imageFiles]) => {
       imageFiles.forEach((fileName, index) => {
         images.push({
-          src: `/images/cities/${city}/${fileName}`,
+          src: `${import.meta.env.BASE_URL}images/cities/${city}/${fileName}`,
           city,
           index: index + 1,
           height: Math.floor(Math.random() * 250) + 400, // 400-650px高度（大幅增加高度）
         });
       });
     });
-    
+
     // 打乱图片顺序并取前28张（7张每列，四列布局，优化加载速度）
     const shuffledImages = images.sort(() => Math.random() - 0.5).slice(0, 28);
     setWaterfallImages(shuffledImages);
@@ -214,25 +214,25 @@ export default function Home({ goTo, goToCity }) {
   const globeScrollProgress = Math.max(0, Math.min((scrollY - window.innerHeight) / window.innerHeight, 1)); // 地球相关的滚动进度
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      style={{ 
-        width: '100vw', 
-        height: '100vh', 
+      style={{
+        width: '100vw',
+        height: '100vh',
         overflowY: 'auto',
         overflowX: 'hidden',
         scrollBehavior: 'smooth'
       }}
     >
       {/* 第一屏：主页内容 */}
-      <div 
-        style={{ 
-          width: '100vw', 
-          height: '100vh', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
           position: 'relative',
           overflow: 'hidden',
           background: scrollY > window.innerHeight * 0.3 ? '#F6BEC8' : 'transparent' // 只在滚动后显示粉色背景
@@ -268,12 +268,12 @@ export default function Home({ goTo, goToCity }) {
                   key={`scroll-${index}`}
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ 
+                  transition={{
                     duration: 0.6,
                     delay: index * 0.1,
                     ease: 'easeOut'
                   }}
-                  style={{ 
+                  style={{
                     fontSize: '5rem',
                     fontWeight: 'bold',
                     color: '#3D3B4F',
@@ -285,7 +285,7 @@ export default function Home({ goTo, goToCity }) {
                 </motion.span>
               ))}
             </div>
-            
+
             {/* 副标题 - To Where? */}
             <div style={{ display: 'flex' }}>
               {subtitle.map((char, index) => (
@@ -293,12 +293,12 @@ export default function Home({ goTo, goToCity }) {
                   key={`scroll-sub-${index}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ 
+                  transition={{
                     duration: 0.6,
                     delay: 0.5 + index * 0.05,
                     ease: 'easeOut'
                   }}
-                  style={{ 
+                  style={{
                     fontSize: '2rem',
                     fontWeight: '300',
                     color: '#3D3B4F',
@@ -392,9 +392,9 @@ export default function Home({ goTo, goToCity }) {
           }}
         >
           {/* 提供多种格式作为备选 */}
-          <source src="/video/all.mp4" type="video/mp4" />
-          <source src="/video/1.mp4" type="video/mp4" />
-          <source src="/video/2.mp4" type="video/mp4" />
+          <source src={`${import.meta.env.BASE_URL}video/all.mp4`} type="video/mp4" />
+          <source src={`${import.meta.env.BASE_URL}video/1.mp4`} type="video/mp4" />
+          <source src={`${import.meta.env.BASE_URL}video/2.mp4`} type="video/mp4" />
           您的浏览器不支持视频播放。
         </video>
 
@@ -402,7 +402,7 @@ export default function Home({ goTo, goToCity }) {
         {scrollY < window.innerHeight * 0.3 && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
-            animate={{ 
+            animate={{
               opacity: [0.4, 1, 0.4],
               y: [0, 10, 0]
             }}
@@ -451,10 +451,10 @@ export default function Home({ goTo, goToCity }) {
             >
               探索更多
             </motion.div>
-            
+
             {/* 箭头图标 */}
             <motion.div
-              whileHover={{ 
+              whileHover={{
                 scale: 1.2,
                 color: '#F6BEC8'
               }}
@@ -467,7 +467,7 @@ export default function Home({ goTo, goToCity }) {
             >
               ↓
             </motion.div>
-            
+
             {/* 装饰性圆点 */}
             <motion.div
               animate={{
@@ -495,10 +495,10 @@ export default function Home({ goTo, goToCity }) {
       </div>
 
       {/* 第二屏：过渡缓冲屏 */}
-      <div 
-        style={{ 
-          width: '100vw', 
-          height: '100vh', 
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
           position: 'relative',
           background: 'linear-gradient(to bottom, #F6BEC8 0%, #000 100%)',
           overflow: 'hidden'
@@ -537,11 +537,11 @@ export default function Home({ goTo, goToCity }) {
                   <motion.div
                     key={`${img.city}-${img.index}-col${columnIndex}-${index}`}
                     initial={{ opacity: 0, y: 50 }}
-                    animate={{ 
+                    animate={{
                       opacity: scrollProgress > 0.1 ? 1 : 0,
                       y: scrollProgress > 0.1 ? 0 : 50
                     }}
-                    transition={{ 
+                    transition={{
                       duration: 0.6,
                       delay: index * 0.1 + columnIndex * 0.03,
                       ease: 'easeOut'
@@ -576,10 +576,10 @@ export default function Home({ goTo, goToCity }) {
       </div>
 
       {/* 第三屏：地球过渡页面 */}
-      <div 
-        style={{ 
-          width: '100vw', 
-          height: '100vh', 
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
           position: 'relative',
           background: '#000', // 纯黑背景
           overflow: 'hidden'
@@ -588,7 +588,7 @@ export default function Home({ goTo, goToCity }) {
 
 
         {/* 3D地球组件 */}
-        <div 
+        <div
           style={{
             position: 'absolute',
             top: '50%',
@@ -601,8 +601,8 @@ export default function Home({ goTo, goToCity }) {
             pointerEvents: globeScrollProgress > 0.95 ? 'auto' : 'none' // 只有地球滚动到95%才启用交互
           }}
         >
-          <CesiumGlobe 
-            goToCity={goToCity} 
+          <CesiumGlobe
+            goToCity={goToCity}
             transitionMode={true}
             scrollProgress={globeScrollProgress}
           />
@@ -610,7 +610,7 @@ export default function Home({ goTo, goToCity }) {
 
         {/* 滚动覆盖层：确保用户可以继续滚动而不被Cesium拦截 */}
         {globeScrollProgress < 0.95 && (
-          <div 
+          <div
             style={{
               position: 'absolute',
               top: 0,
@@ -649,9 +649,9 @@ export default function Home({ goTo, goToCity }) {
         {/* 进入地球页面按钮 */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          animate={{ 
+          animate={{
             opacity: globeScrollProgress > 0.95 ? 1 : 0,
-            y: globeScrollProgress > 0.95 ? 0 : 20 
+            y: globeScrollProgress > 0.95 ? 0 : 20
           }}
           style={{
             position: 'absolute',
@@ -694,7 +694,7 @@ export default function Home({ goTo, goToCity }) {
         {/* 回到顶部按钮 */}
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ 
+          animate={{
             opacity: globeScrollProgress > 0.3 ? 1 : 0,
             scale: globeScrollProgress > 0.3 ? 1 : 0.8
           }}
@@ -739,7 +739,7 @@ export default function Home({ goTo, goToCity }) {
       </div>
 
       {/* 登录弹窗 */}
-      <LoginModal 
+      <LoginModal
         isOpen={showLoginModal}
         onClose={() => {
           setShowLoginModal(false);

@@ -93,7 +93,7 @@ function Planet({ text, config, index, onClick }) {
           {/* Simplified Label: Text Only, Above Planet */}
           <Billboard position={[0, size * 1.5, 0]}>
             <Text
-              font="/fonts/custom-font.ttf" // Use custom font if available, or fallback
+              font={`${import.meta.env.BASE_URL}fonts/custom-font.ttf`} // Use custom font if available, or fallback
               fontSize={0.5}
               color="white"
               anchorX="center"
