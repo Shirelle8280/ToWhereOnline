@@ -4,7 +4,7 @@ import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  base: '/ToWhereOnline/',
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

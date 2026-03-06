@@ -90,7 +90,7 @@ export default function App() {
                     width: '100%',
                     height: '100vh',
                     overflow: 'hidden',
-                    backgroundImage: 'url(/images/Background.jpg)',
+                    backgroundImage: `url(${import.meta.env.BASE_URL}images/Background.jpg)`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     backgroundRepeat: 'no-repeat'
