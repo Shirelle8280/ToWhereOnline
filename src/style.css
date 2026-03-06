@@ -127,7 +127,7 @@ button:active {
 /* Page Container for Tab Switching */
 .page-content {
   width: 100vw;
-  height: 100vh;
+  height: 100%;
   position: relative;
   overflow: hidden;
   /* Prevent body scroll, handle inside components */

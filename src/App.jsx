@@ -228,7 +228,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {activeTab === 'towhere' && <PinkAnimationHome goTo={goTo} goToCity={goToCity} isCityMode={page === 'city'} />}
+                {activeTab === 'towhere' && <PinkAnimationHome goTo={goTo} goToCity={goToCity} isCityMode={page === 'city'} isMobile={isMobile} />}
                 {activeTab === 'breaking' && <FirstsTimeline />}
                 {activeTab === 'letters' && !isMobile && <LettersModule />}
               </div>
@@ -243,7 +243,7 @@ export default function App() {
 
           {/* CityDetail renders on top, Globe continues to exist hidden */}
           {page === 'city' && selectedCity && (
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999, background: 'linear-gradient(135deg, #0a0f1a 0%, #0d1525 40%, #111d35 100%)' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100%', zIndex: 9999, background: 'linear-gradient(135deg, #0a0f1a 0%, #0d1525 40%, #111d35 100%)' }}>
               <CityDetail cityName={selectedCity} goBack={goBackToGlobe} />
             </div>
           )}

@@ -16,7 +16,7 @@ const CAROUSEL_SEQUENCE = [
 
 const INACTIVITY_TIMEOUT = 15000; // 15s
 
-export default function PinkAnimationHome({ goTo, goToCity, isCityMode = false }) {
+export default function PinkAnimationHome({ goTo, goToCity, isCityMode = false, isMobile = false }) {
     const [activeStage, setActiveStage] = useState(0);
     const [isAnimating, setIsAnimating] = useState(true); // Whether CesiumGlobe should animate
     const [carouselActive, setCarouselActive] = useState(true);
@@ -233,7 +233,7 @@ export default function PinkAnimationHome({ goTo, goToCity, isCityMode = false }
     return (
         <div
             style={{
-                width: '100vw', height: '100vh', overflow: 'hidden',
+                width: '100vw', height: '100%', overflow: 'hidden',
                 position: 'relative', background: 'linear-gradient(135deg, #0a0f1a 0%, #0d1525 40%, #111d35 100%)', color: 'white'
             }}
         >
@@ -253,13 +253,13 @@ export default function PinkAnimationHome({ goTo, goToCity, isCityMode = false }
                 transition={{ duration: 1.0 }} // Reduced duration and removed delay for better response
                 style={{
                     position: 'absolute',
-                    bottom: window.innerWidth < 768 ? '80px' : '32px', // Stay above the music ball/safe area on mobile
+                    bottom: isMobile ? '80px' : '32px', // Stay above the music ball/safe area on mobile
                     left: '50%',
                     transform: 'translateX(-50%)',
                     display: 'flex',
                     gap: '18px',
                     alignItems: 'center',
-                    zIndex: 1000, // Higher z-index to stay above other elements
+                    zIndex: 100000, // Higher z-index to stay above other elements
                 }}
             >
                 {[0, 1, 2].map((i) => (
